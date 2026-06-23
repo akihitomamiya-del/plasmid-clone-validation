@@ -19,6 +19,16 @@
 
   "features": { "ghcr.io/devcontainers/features/github-cli:1": {} },
 
+  // Auto-install VS Code extensions into the container's own server on create.
+  // Live Preview (ms-vscode.live-server) renders the workflow HTML report
+  // (runs/<out>/cloneval/wf-clone-validation-report.html) in an embedded tab,
+  // with its port auto-forwarded to your client. This default config has no
+  // egress firewall, so the one-time marketplace install just works on a
+  // networked host; afterward the extension serves the report fully offline.
+  "customizations": {
+    "vscode": { "extensions": ["ms-vscode.live-server"] }
+  },
+
   "containerEnv": {
     "NXF_SINGULARITY_CACHEDIR": "/opt/sif-cache",
     "NXF_HOME": "/opt/nextflow",

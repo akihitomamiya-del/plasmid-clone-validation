@@ -57,6 +57,17 @@
   // fix-opt-ownership.sh (postStartCommand) re-chowns it to the runtime uid at start.
   "updateRemoteUserUID": true,
 
+  // Install the "Live Preview" extension so the workflow HTML report renders in-editor
+  // (right-click runs/<out>/cloneval/wf-clone-validation-report.html -> "Show Preview").
+  // Runs in the PRE-firewall window (postCreateCommand precedes postStartCommand). The egress
+  // firewall blocks the extension gallery byte-CDN, so the normal marketplace install AND the
+  // declarative customizations.vscode.extensions route both fail in this sandbox; instead
+  // install-live-preview.sh installs the .vsix baked into the image (Dockerfile) via the
+  // headless code-server CLI and verifies. Non-fatal; logs to /tmp/live-preview-install.log.
+  "postCreateCommand": {
+    "livePreview": "bash /usr/local/bin/install-live-preview.sh"
+  },
+
   // postStartCommand entries run in PARALLEL; both use scoped-NOPASSWD sudo (the runtime base's
   // blanket NOPASSWD:ALL is removed in the claude-code Dockerfile so a yolo agent can't flush the firewall).
   //  - fixOwnership: re-align /opt to the runtime vscode uid (updateRemoteUserUID side effect).
