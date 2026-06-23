@@ -119,7 +119,8 @@ RUN nextflow pull epi2me-labs/wf-amplicon -r "${WF_AMPLICON_VERSION}" \
 # SCRIPT_DIR, so all of them live together; /opt/pcv on PATH makes `clone_validate.sh …` and
 # `amplicon_validate.sh …` work without the workspace bind-mount.
 COPY filter_nanopore_reads.sh estimate_length_peak.sh clone_validate.sh amplicon_validate.sh /opt/pcv/
-RUN chmod +x /opt/pcv/*.sh && chown -R vscode:vscode /opt/pcv
+COPY amplicon_annotate /opt/pcv/amplicon_annotate
+RUN chmod +x /opt/pcv/*.sh /opt/pcv/amplicon_annotate/*.sh && chown -R vscode:vscode /opt/pcv
 ENV PATH="/opt/pcv:${PATH}"
 
 # NOTE: /opt/sif-cache is intentionally NOT chowned/chmod'd. `apptainer pull` already writes the SIFs
@@ -130,6 +131,12 @@ ENV PATH="/opt/pcv:${PATH}"
 # Now safe to flip offline (all build-time pulls are done):
 ENV NXF_OFFLINE=true
 ENV DEVCONTAINER=true
+
+# Link the published GHCR package to its source repo (shows on the package page; lets the package
+# inherit the repo's visibility/README). Placed late so it doesn't bust the SIF-layer cache.
+LABEL org.opencontainers.image.source="https://github.com/akihitomamiya-del/plasmid-clone-validation" \
+      org.opencontainers.image.description="ONT wf-clone-validation + wf-amplicon fully-offline pipeline runtime (Nextflow + Apptainer + baked SIFs + pre-filter wrappers)" \
+      org.opencontainers.image.licenses="MIT"
 
 USER vscode
 ENV SHELL=/bin/bash EDITOR=nano

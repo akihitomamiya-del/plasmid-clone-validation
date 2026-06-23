@@ -150,9 +150,22 @@ if command -v nextflow >/dev/null 2>&1; then
     echo "  workflow report : $OUT/amplicon/wf-amplicon-report.html"
     echo "  consensus (all) : $OUT/amplicon/all-consensus-seqs.fasta"
     echo "  per-sample      : $OUT/amplicon/<alias>/consensus/consensus.fastq"
-    echo
-    echo "NEXT (not yet wired -- see docs/amplicon_plan.md): plannotate (linear) annotation of the"
-    echo "     consensus + the combined HTML report."
+    # Stage 3-4: pLannotate (linear) BLAST annotation + combined HTML report.
+    CONS="$OUT/amplicon/all-consensus-seqs.fasta"
+    if [[ -s "$CONS" ]] && command -v apptainer >/dev/null 2>&1; then
+        echo
+        echo "== annotation (pLannotate, linear) =="
+        if "$SCRIPT_DIR/amplicon_annotate/annotate.sh" "$CONS" "$OUT/annotation" \
+               "$OUT/amplicon/params.json" "$OUT/amplicon/versions.txt"; then
+            echo "  annotated report : $OUT/annotation/amplicon-annotation-report.html"
+        else
+            echo "WARNING: annotation step failed; wf-amplicon consensus/QC remain in $OUT/amplicon." >&2
+        fi
+    elif [[ -s "$CONS" ]]; then
+        echo "Consensus ready; annotation needs Apptainer (skipped on this host) -- see docs/amplicon_plan.md."
+    else
+        echo "No consensus produced -> skipping annotation."
+    fi
 else
     echo
     echo "nextflow not found here (expected inside the runtime image / devcontainer)."

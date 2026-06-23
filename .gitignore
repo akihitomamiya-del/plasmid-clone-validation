@@ -21,6 +21,7 @@ filtered/
 nf_input/
 cloneval/
 amplicon/
+annotation/
 runs/
 output/
 results/
