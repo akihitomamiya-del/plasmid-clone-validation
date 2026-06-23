@@ -24,7 +24,7 @@ echo "=== Firewall init starting at $(date -Iseconds) ===" | tee "$LOG"
 # ever applied, while the stale "ok" suppresses the firewall-warning.sh banner =
 # SILENT FAIL-OPEN. root can unlink it (CAP_FOWNER in a sticky dir); recreating it
 # makes the file root-owned, after which the agent can neither overwrite (DAC 0644)
-# nor delete (sticky bit) it. Validated 2026-06-20, see validation_findings §8.
+# nor delete (sticky bit) it. Validated 2026-06-20.
 rm -f "$STATUS_FILE"
 echo "failed" > "$STATUS_FILE"
 chmod 644 "$STATUS_FILE"

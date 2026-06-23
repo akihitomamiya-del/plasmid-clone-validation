@@ -15,7 +15,6 @@
 #
 #   Running `chown vscode:vscode` as root resolves `vscode` from the (already-remapped) /etc/passwd,
 #   so this is correct for ANY host uid — no need to know the number at build time.
-#   See docs/validation_findings_2026-06-19.md §3.1.
 #
 # Safety: takes NO arguments and touches only the fixed /opt/nextflow path (non-injectable); the script
 # is root-owned and not writable by `vscode`. Idempotent + cheap (~77 MB, sub-second).

@@ -143,8 +143,7 @@ md5sum <(grep -v '^>' runs/cv_ref/cloneval/barcode69.final.fasta | tr -d '\n' | 
 # both → 2b78d8db3aacbc918d3e031d8ee7538c
 ```
 (AUTO and matched-params give the *same length* but slightly different consensus — both valid. The
-md5 check only matches with the matched-params command above. See
-[`verify_rebuild.md`](verify_rebuild.md).)
+md5 check only matches with the matched-params command above.)
 
 ---
 
@@ -234,7 +233,6 @@ You don't need EPI2ME Desktop installed — the HTML report is self-contained; j
 - [`README.md`](../README.md) — concise reference (all flags, pipeline diagram, tool versions).
 - [`../.devcontainer/README.md`](../.devcontainer/README.md) — authoritative container guide (runtime
   image vs Claude sandbox, containment model, build vs pull).
-- [`verify_rebuild.md`](verify_rebuild.md) — the full self-check (containment + reproduce the reference).
 - [`assembly_findings_2026-06-21.md`](assembly_findings_2026-06-21.md) — why canu, why flye fails, the
   data-driven peak finder.
 - [`sif_cache.md`](sif_cache.md) — pre-stage the workflow images for fully-offline runs.

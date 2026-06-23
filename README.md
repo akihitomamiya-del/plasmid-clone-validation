@@ -210,7 +210,7 @@ estimate_length_peak.sh    # AUTO engine: yield-weighted histogram → full-leng
   README.md                # authoritative devcontainer guide
 .github/workflows/docker-publish.yml   # CI: build + publish the runtime to GHCR on `git tag v*`
 docs/                      # getting_started · sif_cache · host_userns_prereq · decision_log · assembly_testing ·
-                           #   assembly_findings_2026-06-21 · verify_devcontainer · verify_rebuild · archive/
+                           #   assembly_findings_2026-06-21 · verify_devcontainer · archive/
 example_rawdata/barcode69/ # runnable example (raw concat) + its pre-filtered output
 reference_run_canu/        # EPI2ME canu reference output = correctness target (1 contig, 5,652 bp)
 # gitignored: runs/ cloneval/ nf_input/ work/ *.sif *.fastq.gz   (only example_rawdata/** is allowlisted)
