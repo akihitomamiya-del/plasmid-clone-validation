@@ -1,6 +1,8 @@
 # De-novo amplicon + annotation + visualization — implementation plan
 
-**Status:** planning (not yet built). **Created:** 2026-06-23. **Target workflow:** EPI2ME `wf-amplicon` **v1.2.2**.
+**Status:** Phase 0–2 **BUILT + host-validated** (2026-06-24) — de-novo consensus + pLannotate `--linear` BLAST
+annotation + combined HTML report all run offline; see [`amplicon_annotate.md`](amplicon_annotate.md). Phase 4+
+(Mode B / reference) deferred. **Created:** 2026-06-23. **Target workflow:** EPI2ME `wf-amplicon` **v1.2.2**.
 
 A living roadmap for adding a second pipeline to this repo: take Oxford Nanopore **amplicon** reads,
 build a **de-novo consensus** (no reference), **annotate** it with plannotate-style BLAST feature

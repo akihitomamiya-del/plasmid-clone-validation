@@ -9,6 +9,9 @@ own **read pre-filtering** (length window + mean Q) applied *before* assembly �
 sandboxed devcontainer** so Claude Code runs firewalled (safe for `--dangerously-skip-permissions`)
 while the workflow runs **offline** via Apptainer.
 
+A **second pipeline** wraps EPI2ME **`wf-amplicon`** (de-novo amplicon consensus) and adds **pLannotate-style
+BLAST annotation** of that consensus + an offline HTML report — `amplicon_validate.sh` → `amplicon_annotate/`.
+
 ## Start here (docs map)
 - `docs/getting_started.md` — **newcomer walkthrough** (run the shipped example → your own data → read the
   report); the gentle, hand-holding path before this terse guide. Point a brand-new user here first.
@@ -20,12 +23,18 @@ while the workflow runs **offline** via Apptainer.
 - `docs/assembly_testing.md` — canu vs flye: the param sweep + why flye fails on this data.
 - `docs/assembly_findings_2026-06-21.md` — **which lever decides the assembly** (assembler ≫ filtering); the
   validated flye-`SIGFPE` mechanism, the data-driven peak finder (`estimate_length_peak.sh`), inside-vs-outside.
+- **Amplicon pipeline:** `docs/amplicon_plan.md` (design/roadmap), `docs/amplicon_annotate.md` (the
+  pLannotate BLAST annotation + HTML report), `docs/amplicon_testing.md` (host build/test). Code:
+  `amplicon_validate.sh` + `amplicon_annotate/`; example + correctness target: `amplicon_test_example/`.
 - `reference_run_canu/` — EPI2ME **canu** reference output = the build's correctness target
   (expected: **1 contig, 5,652 bp, "Completed successfully"**; that run used `approx_size=5000`).
 - `README.md` — quickstart + **"Before you build"** host prerequisites/secrets.
 
 ## Locked decisions (don't re-litigate)
 - Integration = **pre-filter wrapper** (`clone_validate.sh`), NOT a fork of the workflow.
+- **Amplicon = a second wrapper** (`amplicon_validate.sh`) over `wf-amplicon` **de-novo** (never `--reference`)
+  + a **pLannotate `--linear` annotation** post-step (`amplicon_annotate/`) that BLASTs the consensus and
+  renders an offline HTML report. NOT a fork; the `--linear` patch to `run_plannotate.py` is vendored.
 - Runtime = **Apptainer/Singularity**, NOT Docker-in-Docker (Apptainer shares the host netns, so the
   egress firewall governs the workflow for free).
 - The devcontainer is a **two-artifact split** under `.devcontainer/` (built + validated, commit 187381b):
@@ -50,6 +59,14 @@ while the workflow runs **offline** via Apptainer.
   `docs/host_userns_prereq.md`.
 - **`approx_size` envelope rule:** keep `ceil(max_len/1.2) ≤ approx_size ≤ 2×min_len`, ≈ the true
   construct size, or `wf-clone-validation` silently re-clips your reads. `clone_validate.sh` guards it.
+- **Wrappers `cd "$OUT"` before Nextflow (work-dir fix, 2026-06-24):** a standalone `docker run …
+  *_validate.sh …` starts in CWD `/` (non-root `vscode` can't write), so Nextflow's `work/`/`.nextflow/`
+  creation aborts the run. Both wrappers resolve `$OUT` absolute and launch from it. The mounted output dir
+  must be writable by the container **uid 1000** (`chmod 777` it if your host UID differs).
+- **Amplicon annotation is offline + Apptainer-only:** `amplicon_annotate/annotate.sh` runs `run_plannotate.py
+  --linear` (plannotate SIF) then `combined_report.py` (wf-clone-validation SIF) via `apptainer exec` — all
+  BLAST DBs are baked. pLannotate's own map is **circular**; we add a **linear track** for amplicons. The step
+  is skipped on a Docker-only host (no Apptainer).
 - **SIF cache filenames** Nextflow expects must be confirmed by one online run (`docs/sif_cache.md`) —
   the #1 thing that silently breaks offline.
 - **Assembler is THE critical lever (validated 2026-06-21):** `clone_validate.sh` now **defaults to
