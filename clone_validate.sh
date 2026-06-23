@@ -66,6 +66,12 @@ PEAKFINDER="$SCRIPT_DIR/estimate_length_peak.sh"
 
 [[ -d "$RAW" ]] || { echo "ERROR: raw dir not found: $RAW" >&2; exit 1; }
 
+# Resolve OUT to an ABSOLUTE path now. We 'cd "$OUT"' before launching Nextflow (step 3) so its
+# launch-dir scratch (work/, .nextflow/, .nextflow.log) lands somewhere writable -- a standalone
+# `docker run` starts in CWD '/', which the non-root runtime user cannot write, aborting the run
+# before it starts. Absolute OUT keeps the relative "$OUT/..." paths below valid after the cd.
+mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
+
 # --- Assembler default: canu (override via EXTRA_NF_ARGS="--assembly_tool flye") ---
 # Canu reliably assembles full-length plasmid reads in every condition tested; flye auto-picks a
 # min-overlap > the ~read length -> zero overlaps -> SIGFPE. See docs/assembly_findings_2026-06-21.md.
@@ -148,9 +154,11 @@ else
 fi
 
 # 3) run (or print) nextflow.  WF_VERSION pins the workflow release; EXTRA_NF_ARGS adds flags.
+# Launch from $OUT (absolute, above) so Nextflow writes work/, .nextflow/ and .nextflow.log into a
+# writable dir -- a standalone `docker run` starts in CWD '/', not writable by the non-root user.
 if command -v nextflow >/dev/null 2>&1; then
     echo "+ ${NF_CMD[*]}"
-    "${NF_CMD[@]}"
+    ( cd "$OUT" && "${NF_CMD[@]}" )
 else
     echo
     echo "nextflow not found here (expected inside the sandboxed devcontainer)."
