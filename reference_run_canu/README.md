@@ -2,7 +2,7 @@
 
 The output of an **EPI2ME Desktop** run (`epi2melabs/5.3.1`) of `wf-clone-validation` on the example
 data using the **canu** assembler. Use it as the expected result when validating the sandboxed
-container build (`docs/setup_and_plan.md` §7 Phase 4) — a fresh run should reproduce this.
+container build (`docs/archive/setup_and_plan.md` §7 Phase 4) — a fresh run should reproduce this.
 
 ## Input
 `barcode69.len5kb-6kb_q20.fastq.gz` — the example reads filtered to **5–6 kb, mean Q ≥ 20** (128 reads).

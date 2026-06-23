@@ -14,7 +14,7 @@ while the workflow runs **offline** via Apptainer.
   report); the gentle, hand-holding path before this terse guide. Point a brand-new user here first.
 - `.devcontainer/README.md` — **authoritative for the devcontainer** (the runtime image `build/` vs the
   Claude-Code sandbox `claude-code/`, the containment model, host prereq, local build vs GHCR pull).
-- `docs/setup_and_plan.md` — *archived* (build plan, now executed) → `docs/archive/`; see `.devcontainer/README.md`.
+- `docs/archive/setup_and_plan.md` — *archived* original build plan (now executed); see `.devcontainer/README.md`.
 - `docs/verify_devcontainer.md` — in-container checks: confirm the build is sandboxed and runs the pipeline.
 - `docs/sif_cache.md` — pre-stage the workflow images for offline runs (**required**; exact SHAs).
 - `docs/assembly_testing.md` — canu vs flye: the param sweep + why flye fails on this data.

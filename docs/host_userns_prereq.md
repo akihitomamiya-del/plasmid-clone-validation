@@ -101,7 +101,7 @@ the reference exactly — **1 contig, 5,652 bp, "Completed successfully"** — a
 
 Note: besides this host profile, the devcontainer also passes `--security-opt systempaths=unconfined`
 so the workflow's *nested* Apptainer can mount `/proc` — a container runArg, not a host change
-(see `setup_and_plan.md` §5).
+(see `archive/setup_and_plan.md` §5).
 
 ---
 
@@ -128,5 +128,5 @@ sequencing user. It opens no network/remote exposure. On a shared lab box, prefe
 ## If you'd rather not change the host at all
 
 Run the firewalled devcontainer purely as the Claude sandbox and run the assembly on the host's
-existing Docker (`PROFILE=standard ./clone_validate.sh …`, see `docs/setup_and_plan.md` Appendix A),
+existing Docker (`PROFILE=standard ./clone_validate.sh …`, see `docs/archive/setup_and_plan.md` Appendix A),
 or run Apptainer directly on the host. Both avoid the nested rootless-Apptainer requirement entirely.

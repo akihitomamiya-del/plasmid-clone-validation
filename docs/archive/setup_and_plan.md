@@ -34,7 +34,7 @@ The `.devcontainer/` and `example_rawdata/` now live together on `main`.
 |---|---|---|
 | Read filter (length window + mean-Q) | `filter_nanopore_reads.sh` | ✅ built, tested |
 | Clone-validation wrapper | `clone_validate.sh` | ✅ built, tested (filter+reshape+`approx_size` guard); `EXTRA_NF_ARGS` passthrough; prints the `nextflow` cmd when nextflow is absent |
-| This plan | `docs/setup_and_plan.md` | ✅ this file |
+| This plan | `docs/archive/setup_and_plan.md` | ✅ this file |
 | SIF pre-staging manifest+recipe | `docs/sif_cache.md` | ✅ exact SHAs + pull recipe; ⚠️ cache filenames need one online validation run (doc explains) |
 | Assembly testing (canu vs flye) | `docs/assembly_testing.md` | ✅ params + test matrix |
 | Trimmed devcontainer | `.devcontainer/` | ⚠️ **DRAFT** — fixes applied, but **unbuilt/untested** (needs a networked host) |

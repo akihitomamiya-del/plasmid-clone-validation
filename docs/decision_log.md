@@ -1,7 +1,7 @@
 # Decision log
 
 Short records of non-obvious choices and *why* we made them, newest first — so a future session (or
-teammate) doesn't re-litigate a settled question. See also `setup_and_plan.md` (the plan) and each
+teammate) doesn't re-litigate a settled question. See also `archive/setup_and_plan.md` (the plan) and each
 topic doc in `docs/`.
 
 ---
