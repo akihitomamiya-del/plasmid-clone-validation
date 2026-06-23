@@ -1,0 +1,18 @@
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ CREATE │ Operate analyis run… │ 
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ UPDATE │ Operate analyis run… │ Initialising
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ UPDATE │ Operate analyis run… │ Reading launch data
+2026-06-23T03:07Z │ 01KVS75J84NXHEKYJPV1XAHBZV │ CREATE │ Submitting tracking… │ Submitting tracking events into heap
+2026-06-23T03:07Z │ 01KVS75J84NXHEKYJPV1XAHBZV │ UPDATE │ Submitting tracking… │ Initialising
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ UPDATE │ Operate analyis run… │ Acquiring database record
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ UPDATE │ Operate analyis run… │ Creating progress service
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ UPDATE │ Operate analyis run… │ Creating tracking service
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ UPDATE │ Operate analyis run… │ Creating runner
+2026-06-23T03:07Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ CREATE │ Operate analyis run… │ 
+2026-06-23T03:07Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ UPDATE │ Operate analyis run… │ Initialising
+2026-06-23T03:07Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ UPDATE │ Operate analyis run… │ Creating connection
+2026-06-23T03:07Z │ 01KVS75J7PNBS20KSZFE9Z265W │ UPDATE │ Operate analyis run… │ Launching analysis
+2026-06-23T03:07Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ UPDATE │ Operate analyis run… │ Awaiting weblog via HTTP on 45377
+2026-06-23T03:07Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ UPDATE │ Operate analyis run… │ Launching nextflow subprocess
+2026-06-23T03:07Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ UPDATE │ Operate analyis run… │ Connection established to app
+2026-06-23T03:08Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ UPDATE │ Operate analyis run… │ Subprocess closed: 0
+2026-06-23T03:08Z │ 01KVS75J8GNPP8PCRQJ5V6SA90 │ FINISH │ Operate analyis run… │ Exiting

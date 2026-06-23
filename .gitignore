@@ -20,6 +20,7 @@ work/
 filtered/
 nf_input/
 cloneval/
+amplicon/
 runs/
 output/
 results/
@@ -39,3 +40,11 @@ results/
 !reference_run_canu/
 !reference_run_canu/**/
 !reference_run_canu/**
+
+# Committed amplicon example: raw reads (barcode09/) + an EPI2ME wf-amplicon de-novo
+# reference run — the amplicon correctness target (docs/amplicon_testing.md). Same pattern
+# as reference_run_canu: re-include dirs first (defeats the bare output/ ignore), then files
+# (defeats *.fastq.gz / *.bam / *.bai).
+!amplicon_test_example/
+!amplicon_test_example/**/
+!amplicon_test_example/**

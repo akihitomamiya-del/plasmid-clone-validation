@@ -3,7 +3,8 @@
 # ------------------------------------------------------------
 # The reusable, fully-offline pipeline runtime: base + EPI2ME runtime
 # (Java + Nextflow + Apptainer) + seqkit + the 5 wf-clone-validation SIFs
-# + the pulled workflow code + our wrapper scripts.
+# + the wf-amplicon SIF + the pulled workflow code (wf-clone-validation AND wf-amplicon)
+# + our wrapper scripts.
 #
 # NOT here (added by .devcontainer/claude-code on top — the L3R-seq pattern):
 #   Claude Code CLI, node, the egress firewall, sudo-lockdown.
@@ -80,10 +81,44 @@ RUN set -eux; mkdir -p /opt/sif-cache; \
 RUN nextflow pull epi2me-labs/wf-clone-validation -r "${WF_VERSION}" \
     && chown -R vscode:vscode /opt/nextflow
 
+# --- Pre-stage wf-amplicon (de-novo amplicon consensus) — ONE additional SIF ----------------
+# wf-amplicon shares medaka + wf-common with wf-clone-validation at the SAME pinned SHAs
+# (baked above), so ONLY the wf-amplicon image itself is new (~1.5 GB). wf-amplicon has NO
+# base.config (404) — its container SHA lives in nextflow.config. Same lean pattern: pull the SIF
+# to the exact filename Nextflow's singularity cache expects, then purge the OCI cache in THIS
+# layer. The de-novo (1 amplicon/barcode) and the future multi-amplicon reference path use the
+# SAME SIF — no extra image. See docs/amplicon_plan.md.
+ARG WF_AMPLICON_VERSION=v1.2.2
+RUN set -eux; \
+    curl -fsSL -o /tmp/amplicon.config \
+      "https://raw.githubusercontent.com/epi2me-labs/wf-amplicon/${WF_AMPLICON_VERSION}/nextflow.config"; \
+    amplicon=$(sed -n 's/^[[:space:]]*container_sha[[:space:]]*=[[:space:]]*"\(sha[0-9a-f]*\)".*/\1/p' /tmp/amplicon.config | head -n1); \
+    test -n "${amplicon}"; \
+    apptainer pull --force "/opt/sif-cache/ontresearch-wf-amplicon-${amplicon}.img" \
+      "docker://ontresearch/wf-amplicon:${amplicon}"; \
+    apptainer cache clean -f || true; \
+    rm -rf /root/.apptainer/cache "${APPTAINER_CACHEDIR:-/root/.apptainer/cache}" /tmp/* ; \
+    ls -la /opt/sif-cache
+# Pre-cache the wf-amplicon pipeline code so `nextflow run … -r v1.2.2` is fully offline.
+RUN nextflow pull epi2me-labs/wf-amplicon -r "${WF_AMPLICON_VERSION}" \
+    && chown -R vscode:vscode /opt/nextflow
+
+# --- Offline gate (medaka model): verify at RUNTIME, not build (apptainer exec mounts the SIF -> needs
+#     /dev/fuse, which `apptainer pull` above does not). wf-amplicon polishes with
+#     `medaka inference --model <basecaller_cfg>:consensus`; the basecaller cfg is AUTO-DETECTED from the
+#     read headers (MinKNOW sup embeds it). Auto-selection picks the model NAME from the data; offline we
+#     also need its WEIGHTS bundled in the medaka SIF. After building, confirm the R10.4.1 E8.2 5 kHz sup
+#     model is present (the running container has fuse; the build does not):
+#       docker run --rm --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor=pcv-apptainer <image> \
+#         bash -lc 'apptainer exec "$(ls /opt/sif-cache/ontresearch-medaka-*.img)" medaka tools list_models'
+#     If the sup model is absent, pin a bundled one at runtime via OVERRIDE_BASECALLER_CFG (amplicon_validate.sh
+#     exposes it). See docs/amplicon_plan.md §8b.
+
 # --- Our wrapper scripts (so the image is runnable standalone via `docker run`) ---
-# clone_validate.sh resolves its siblings via SCRIPT_DIR, so all three live together;
-# /opt/pcv on PATH makes `clone_validate.sh …` work without the workspace bind-mount.
-COPY filter_nanopore_reads.sh estimate_length_peak.sh clone_validate.sh /opt/pcv/
+# clone_validate.sh / amplicon_validate.sh resolve their siblings (the filter/peak scripts) via
+# SCRIPT_DIR, so all of them live together; /opt/pcv on PATH makes `clone_validate.sh …` and
+# `amplicon_validate.sh …` work without the workspace bind-mount.
+COPY filter_nanopore_reads.sh estimate_length_peak.sh clone_validate.sh amplicon_validate.sh /opt/pcv/
 RUN chmod +x /opt/pcv/*.sh && chown -R vscode:vscode /opt/pcv
 ENV PATH="/opt/pcv:${PATH}"
 
