@@ -1,0 +1,68 @@
+# AppArmor profile: pcv-apptainer
+# ===========================================================================
+# Lets the plasmid-clone-validation devcontainer run ROOTLESS Apptainer on a
+# host hardened with `kernel.apparmor_restrict_unprivileged_userns = 1`
+# (Ubuntu 23.10+), WITHOUT relaxing that global sysctl.
+#
+# Why this works (two gates — see docs/host_userns_prereq.md):
+#   1. The host userns restriction blocks unprivileged user-namespace creation
+#      for UNCONFINED processes, but ALLOWS it for a process confined by a named
+#      profile that carries the `userns,` permission. This is such a profile.
+#   2. Docker's stock `docker-default` profile satisfies gate 1 but DENIES
+#      `mount`, which rootless Apptainer needs (pivot_root + bind mounts + the
+#      squashfuse mount of the SIF). This profile permits `mount` as well.
+#
+# Security scope: the permission is OPT-IN per container — only a container
+# started with `--security-opt apparmor=pcv-apptainer` gets it. The global
+# userns hardening stays ON for every other process and user on the host,
+# unlike setting the sysctl to 0 (which weakens it host-wide).
+#
+# Install (one-time, admin):  sudo bash .devcontainer/setup-host-apparmor.sh
+#   -> copies this file to /etc/apparmor.d/pcv-apptainer and loads it; AppArmor
+#      auto-loads it on every subsequent boot.
+#
+# Validated 2026-06-19 on validation-host (Docker 29, kernel 6.17,
+# sysctl left at 1): non-root `apptainer exec` of the workflow SIFs succeeds.
+#
+# Intentionally broad on AppArmor mediation: the active controls here are the
+# egress firewall, Docker's default capability drop, the non-root user, and
+# userns isolation. AppArmor's role is narrowly to satisfy the userns gate
+# without blocking Apptainer's mounts. A first hardening pass — deny rules for
+# the sensitive /proc & /sys paths that systempaths=unconfined re-exposes — is
+# applied at the end of the profile. A full docker-default-derived profile
+# (re-adding ptrace/signal scoping etc.) remains possible future work.
+
+include <tunables/global>
+
+profile pcv-apptainer flags=(attach_disconnected,mediate_deleted) {
+  # The two rules that matter (see header):
+  userns,
+  mount,
+  umount,
+  pivot_root,
+
+  # Broad otherwise:
+  capability,
+  network,
+  ptrace,
+  signal,
+  unix,
+  dbus,
+  file,
+
+  # --- Hardening (defense-in-depth; `deny` overrides the broad `file,` above) ---
+  # Re-close the sensitive /proc & /sys paths that `systempaths=unconfined`
+  # (required for the workflow's nested /proc mount) re-exposes — notably
+  # /proc/sysrq-trigger, which can crash/reboot the HOST (this box runs live
+  # sequencing under another user). Mirrors docker-default's proc/sys denials but
+  # keeps `mount` (Apptainer needs it). Verified not to affect the pipeline (full
+  # canu run still reproduces 1 contig / 5,652 bp). Primary protection is still the
+  # non-root user + file perms; this is the second layer (e.g. if a process gains
+  # root in the container).
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+  deny @{PROC}/kallsyms rwklx,
+  deny @{PROC}/sys/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+}

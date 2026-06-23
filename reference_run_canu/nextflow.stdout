@@ -1,0 +1,74 @@
+N E X T F L O W  ~  version 23.04.2
+Launching `/home/user/epi2melabs/workflows/epi2me-labs/wf-clone-validation/v1.8.4/main.nf` [determined_volhard] DSL2 - revision: 06c35870b9
+
+[0;92m||||||||||   [0m[2m_____ ____ ___ ____  __  __ _____
+[0;92m||||||||||  [0m[2m| ____|  _ \_ _|___ \|  \/  | ____|
+[0;33m|||||       [0m[2m|  _| | |_) | |  __) | |\/| |  _|
+[0;33m|||||       [0m[2m| |___|  __/| | / __/| |  | | |__
+[0;94m||||||||||  [0m[2m|_____|_|  |___|_____|_|  |_|_____|
+[0;94m||||||||||  [0m[1mwf-clone-validation v1.8.4[0m
+[2m--------------------------------------------------------------------------------[0m
+[1mCore Nextflow options[0m
+  [0;34mrunName        : [0;32mdetermined_volhard[0m
+  [0;34mcontainerEngine: [0;32mdocker[0m
+  [0;34mlaunchDir      : [0;32m/home/user/epi2melabs/instances/wf-clone-validation_01KVESDREQASYBABA987PR6AME[0m
+  [0;34mworkDir        : [0;32m/home/user/epi2melabs/instances/wf-clone-validation_01KVESDREQASYBABA987PR6AME/work[0m
+  [0;34mprojectDir     : [0;32m/home/user/epi2melabs/workflows/epi2me-labs/wf-clone-validation/v1.8.4[0m
+  [0;34muserName       : [0;32muser[0m
+  [0;34mprofile        : [0;32mstandard[0m
+  [0;34mconfigFiles    : [0;32m/home/user/epi2melabs/workflows/epi2me-labs/wf-clone-validation/v1.8.4/nextflow.config[0m
+
+[1mInput Options[0m
+  [0;34mfastq          : [0;32m/home/user/Desktop/260612_troubleshoot/plasmid_filtered_260618/barcode69.len5kb-6kb_q20.fastq.gz[0m
+  [0;34mapprox_size    : [0;32m5000[0m
+
+[1mOutput Options[0m
+  [0;34mout_dir        : [0;32m/home/user/epi2melabs/instances/wf-clone-validation_01KVESDREQASYBABA987PR6AME/output[0m
+
+[1mAdvanced Options[0m
+  [0;34massembly_tool  : [0;32mcanu[0m
+
+[1mMiscellaneous Options[0m
+  [0;34mthreads        : [0;32m16[0m
+  [0;34mstore_dir      : [0;32m/home/user/epi2melabs/data[0m
+
+!! Only displaying parameters that differ from the pipeline defaults !!
+[2m--------------------------------------------------------------------------------[0m
+If you use epi2me-labs/wf-clone-validation for your analysis please cite:
+
+* The nf-core framework
+  https://doi.org/10.1038/s41587-020-0439-x
+
+
+[2m--------------------------------------------------------------------------------[0m
+This is epi2me-labs/wf-clone-validation v1.8.4.
+[2m--------------------------------------------------------------------------------[0m
+WARN: Assembly tool Canu. This may result in suboptimal performance on ARM devices.
+Searching input for [.fastq, .fastq.gz, .fq, .fq.gz] files.
+[b2/a9c042] Submitted process > pipeline:getParams
+[28/b9f3c9] Submitted process > pipeline:medakaVersion
+[20/206302] Submitted process > fastcat (1)
+[08/0fd9c5] Submitted process > pipeline:checkIfEnoughReads (1)
+[d4/4e7de7] Submitted process > pipeline:assembleCore (1)
+[16/7ef713] Submitted process > pipeline:canuVersion
+[a5/7b9d28] Submitted process > pipeline:getVersions
+[d6/df25ba] Submitted process > pipeline:downsampledStats (1)
+[b8/0f78fa] Submitted process > pipeline:medakaPolishAssembly (1)
+[aa/9b5313] Submitted process > pipeline:reorientateFastqAndGetFasta (1)
+[b8/05846e] Submitted process > pipeline:assembly_qc (1)
+[bd/94f635] Submitted process > pipeline:assemblyMafs (1)
+[59/6d878c] Submitted process > pipeline:findPrimers (1)
+[90/69fc07] Submitted process > pipeline:inserts (1)
+[94/97456d] Submitted process > pipeline:runPlannotate (1)
+[64/7193e2] Submitted process > pipeline:report (1)
+[5d/6a30e5] Submitted process > publish (3)
+[28/476a49] Submitted process > publish (1)
+[74/5f23c2] Submitted process > publish (4)
+[03/dd0303] Submitted process > publish (9)
+[93/2ba184] Submitted process > publish (6)
+[d7/66a201] Submitted process > publish (2)
+[c5/1c814d] Submitted process > publish (10)
+[85/4124b8] Submitted process > publish (7)
+[51/358747] Submitted process > publish (8)
+[ec/edd95a] Submitted process > publish (11)
+[05/5776e3] Submitted process > publish (5)

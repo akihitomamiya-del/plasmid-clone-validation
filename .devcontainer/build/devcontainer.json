@@ -1,0 +1,33 @@
+{
+  // plasmid-clone-validation — RUNTIME build/test config.
+  // Builds the publishable runtime image locally (no Claude, no firewall) so you can
+  // iterate on it and run an assembly. The published GHCR image is built from this same
+  // Dockerfile by .github/workflows/docker-publish.yml.
+  "name": "plasmid-clone-validation (runtime build)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "../.."
+  },
+
+  // Rootless Apptainer runArgs so the pipeline runs inside the runtime image.
+  // No NET_ADMIN/firewall here — that's the claude-code sandbox config.
+  // HOST PREREQUISITE (one-time, admin): sudo bash .devcontainer/setup-host-apparmor.sh
+  "runArgs": [
+    "--security-opt", "seccomp=unconfined",
+    "--security-opt", "apparmor=pcv-apptainer",
+    "--security-opt", "systempaths=unconfined",
+    "--device", "/dev/fuse"
+  ],
+
+  "containerEnv": {
+    "NXF_SINGULARITY_CACHEDIR": "/opt/sif-cache",
+    "NXF_HOME": "/opt/nextflow",
+    "NXF_OFFLINE": "true"
+  },
+
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  // The runtime base keeps the devcontainers-base blanket sudo (no agent to contain here), so a
+  // plain chown re-aligns /opt to the runtime uid when the host dev-uid != 1000.
+  "postStartCommand": "sudo chown -R vscode:vscode /opt/nextflow"
+}

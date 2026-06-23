@@ -1,0 +1,2 @@
+Sample,Assembly completed / failed reason,Length
+barcode69,Completed successfully,5652

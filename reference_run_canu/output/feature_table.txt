@@ -1,0 +1,9 @@
+Sample_name,Feature,Database,Identity,Match Length,Description,Start Location,End Location,Length,Strand,Plasmid length
+barcode69,PGR3,swissprot,100.0%,83.3%,PP344_ARATH - Experimental evidence at protein level: Swiss-Prot protein existence level 1. Plays a role in the stabilization of the primary polycistronic transcript of the petL operon encoding subunits of the cytochrome b6-f complex. From Arabidopsis thaliana (Mouse-ear cress).,4239,1365,2778,-1,5652
+barcode69,attL2,snapgene,100.0%,100.0%,mutant version of attL; recombination site for the Gateway® LR reaction LR Clonase™,3559,3659,100,1,5652
+barcode69,AmpR,snapgene,99.9%,100.0%,"β-lactamase; bla; confers resistance to ampicillin, carbenicillin, and related antibiotics",2576,3437,861,-1,5652
+barcode69,ori,snapgene,99.8%,100.0%,high-copy-number ColE1/pMB1/pBR322/pUC origin of replication ,1898,2487,589,-1,5652
+barcode69,rrnB T1 terminator,snapgene,100.0%,100.0%,Escherichia coli rrnB; transcription terminator T1 from the E. coli rrnB gene,1687,1731,44,1,5652
+barcode69,rrnB T2 terminator,snapgene,100.0%,100.0%,transcription terminator T2 from the E. coli rrnB gene,1528,1556,28,-1,5652
+barcode69,attL1,snapgene,100.0%,99.0%,mutant version of attL; recombination site for the Gateway® LR reaction LR Clonase™,1380,1479,99,-1,5652
+barcode69,RNAI,Rfam,100.0%,97.1%,Accession: RF00106 - RNAI,2341,2446,105,1,5652

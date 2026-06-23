@@ -1,0 +1,33 @@
+{
+  // plasmid-clone-validation — DEFAULT config: run the pipeline from the published
+  // runtime image (no Claude, no firewall). Two alternatives in the "Reopen in Container" picker:
+  //   • .devcontainer/claude-code — the offline yolo-Claude SANDBOX (Claude CLI + egress firewall)
+  //   • .devcontainer/build       — build/iterate the runtime image itself
+  "name": "plasmid-clone-validation",
+  "image": "ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest",
+
+  // Rootless Apptainer runArgs so the workflow's nested containers run offline.
+  // HOST PREREQUISITE (one-time, admin): sudo bash .devcontainer/setup-host-apparmor.sh
+  //   (loads the pcv-apptainer AppArmor profile; see docs/host_userns_prereq.md). Without it
+  //   Docker errors "apparmor profile pcv-apptainer not found". runArgs are IGNORED on Codespaces.
+  "runArgs": [
+    "--security-opt", "seccomp=unconfined",
+    "--security-opt", "apparmor=pcv-apptainer",
+    "--security-opt", "systempaths=unconfined",
+    "--device", "/dev/fuse"
+  ],
+
+  "features": { "ghcr.io/devcontainers/features/github-cli:1": {} },
+
+  "containerEnv": {
+    "NXF_SINGULARITY_CACHEDIR": "/opt/sif-cache",
+    "NXF_HOME": "/opt/nextflow",
+    "NXF_OFFLINE": "true"
+  },
+
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  // The runtime image keeps the devcontainers-base blanket sudo (no agent to contain here), so a
+  // plain chown re-aligns /opt to the runtime uid when the host dev-uid != 1000.
+  "postStartCommand": "sudo chown -R vscode:vscode /opt/nextflow"
+}

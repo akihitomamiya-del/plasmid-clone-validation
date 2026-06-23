@@ -1,0 +1,41 @@
+# Sequencing data — never commit
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.bam
+*.bai
+*.sam
+*.cram
+
+# Container images
+*.sif
+
+# Nextflow runtime
+.nextflow/
+.nextflow.log*
+work/
+
+# Wrapper / pipeline outputs
+filtered/
+nf_input/
+cloneval/
+runs/
+output/
+results/
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*~
+
+# Committed example data (overrides the *.fastq.gz ignore above).
+# Recursive so barcodeNN/ subdirs (the layout the scripts require) are tracked too.
+!example_rawdata/
+!example_rawdata/**
+
+# Committed reference run (EPI2ME canu output, the build's correctness target).
+# Re-include dirs first (defeats the bare output/ ignore), then files (defeats *.fastq).
+!reference_run_canu/
+!reference_run_canu/**/
+!reference_run_canu/**

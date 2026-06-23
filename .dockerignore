@@ -1,0 +1,16 @@
+# Keep the Docker build context tiny. The image Dockerfiles only COPY the wrapper
+# scripts (.devcontainer/build) and the firewall scripts (.devcontainer/claude-code);
+# exclude all pipeline data/output + VCS so `docker build .` ships ~KBs, not GBs.
+.git
+.github
+runs/
+cloneval/
+nf_input/
+work/
+**/work/
+*.sif
+*.img
+*.fastq
+*.fastq.gz
+example_rawdata/
+reference_run_canu/
