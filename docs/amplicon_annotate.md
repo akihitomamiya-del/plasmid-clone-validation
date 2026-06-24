@@ -55,8 +55,10 @@ amplicon_annotate/annotate.sh <consensus.fasta> <out_dir> [params.json] [version
 
 1. **Stage 3 — annotate.** Split the multi-record consensus into one `<sample>.final.fasta` per record,
    then run our patched `run_plannotate.py --linear` inside the **plannotate SIF** against
-   `--database Default` (SnapGene→blastn, Swiss-Prot/fpbase→diamond, Rfam→infernal). The `--linear` flag
-   (see below) is the only change from the vendored wf-clone-validation script.
+   `--database Default` (SnapGene→blastn, Swiss-Prot/fpbase→diamond, Rfam→infernal). Two small local
+   changes to the vendored script: the `--linear` flag (see below), and — when a consensus has **no**
+   annotatable features — keeping that sample in the report (with an empty table) instead of dropping it,
+   so the report shows a "No known elements" tab rather than an empty dropdown.
 2. **Stage 4 — annotation report.** `combined_report.py` runs inside the **wf-clone-validation SIF** (it
    has ezcharts + bokeh + pLannotate), loads `plannotate_report.json`, rebuilds the feature plot from the
    dataframe, and writes one `LabsReport` HTML (`amplicon-annotation-report.html`) with a summary + the

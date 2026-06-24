@@ -273,6 +273,18 @@ def main(args):
                     "features": [],
                     "plot": {}}
                 plannotate_collection[name] = plannotate_dic
+                # Keep the sample in the REPORT too, with empty plot/annotations,
+                # so the (combined) report renders a "No known elements" tab for it
+                # instead of silently dropping it (which leaves an empty dropdown).
+                # The empty annotations df makes combined_report.py's table.empty
+                # branch fire. (Second local change to this vendored script, after
+                # --linear; see docs/amplicon_annotate.md.)
+                empty_df = pd.DataFrame().to_json()
+                report_dic[name] = {
+                    'sample_name': name,
+                    'plot': empty_df,
+                    'annotations': empty_df,
+                    'seq_len': seq_len}
                 continue
 
     # outputs for epi2me

@@ -165,6 +165,10 @@ def plannotate_section(report, plannotate):
             "reverse below); the <b>pLannotate map</b> is the tool's native "
             "view. Unfilled features in the pLannotate map are incomplete "
             "(match covers &lt;95% of the database feature).")
+        if not plannotate:
+            p("No consensus sequences were annotated -- none had recognizable "
+              "elements (or no consensus was produced).")
+            return
         tabs = Tabs()
         with tabs.add_dropdown_menu():
             for sample, item in plannotate.items():
