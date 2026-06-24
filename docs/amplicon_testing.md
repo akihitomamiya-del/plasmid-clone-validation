@@ -39,14 +39,15 @@ Pass criteria are summarized at the bottom.
     barcode01/   *.fastq.gz      # one amplicon per barcode (Mode A)
     barcode02/   *.fastq.gz
   ```
-  **An amplicon example ships in this repo**, so this whole test runs with **no external data**:
-  `examples/amplicon/amplicon_test_example/` — `barcode18/` + `barcode21/` (24 `*.fastq.gz` each; real
-  de-identified MinKNOW *sup* reads) + a committed EPI2ME wf-amplicon reference run (the correctness target,
-  the amplicon analogue of `examples/plasmid/reference_run_canu/`): **two consensuses, ~2,156 bp and
-  ~3,283 bp**. Point the wrapper at `examples/amplicon/amplicon_test_example/`: it picks up the two
-  `barcodeNN/` reads dirs and **warns-and-skips** the sibling `wf-amplicon_*/` run dir (not `barcodeNN`). To
-  test your own data, drop a `barcodeNN/*.fastq.gz` dir anywhere (subdir names **must** match `barcodeNN`,
-  ≥2 digits). (A data-free smoke test is also possible via wf-amplicon's bundled `test_data/` de-novo demo.)
+  **An amplicon example ships in this repo**, so this whole test runs with **no external data** — laid out
+  like the plasmid one (a `raw/` reads dir + a sibling `reference_run_*/`): `examples/amplicon/raw/` holds
+  `barcode18/` + `barcode21/` (one concatenated `*.fastq.gz` each; real de-identified MinKNOW *sup* reads)
+  plus a loose `amplicon_samplesheet_example.csv`, and `examples/amplicon/reference_run_wf-amplicon/` is the
+  committed EPI2ME wf-amplicon reference run — the correctness target (the amplicon analogue of
+  `examples/plasmid/reference_run_canu/`): **two consensuses, ~2,156 bp and ~3,283 bp**. Point the wrapper at
+  `examples/amplicon/raw/`: it picks up the two `barcodeNN/` reads dirs (the loose `.csv` is ignored). To test
+  your own data, drop a `barcodeNN/*.fastq.gz` dir anywhere (subdir names **must** match `barcodeNN`, ≥2
+  digits). (A data-free smoke test is also possible via wf-amplicon's bundled `test_data/` de-novo demo.)
 
 The four run-time security args used throughout mirror `.devcontainer/build/devcontainer.json` (the
 validated rootless-Apptainer recipe). Export them once to keep commands short:
@@ -116,7 +117,7 @@ Uses the **shipped example** (§0) — no external data needed. `amplicon_valida
 mkdir -p amp_out && chmod 777 amp_out      # /out must be writable by the container's uid 1000 (vscode);
                                            # the chmod is only needed if your host account isn't uid 1000
 docker run --rm "${RUNARGS[@]}" \
-  -v "$PWD/examples/amplicon/amplicon_test_example":/data:ro \
+  -v "$PWD/examples/amplicon/raw":/data:ro \
   -v "$PWD/amp_out":/out \
   "$IMG" \
   amplicon_validate.sh /data /out none 300 15
@@ -141,7 +142,7 @@ finishes with its normal completion summary. Outputs:
 the committed reference run's `.fai`:
 ```bash
 seqkit stats amp_out/amplicon/all-consensus-seqs.fasta                                                   # produced now
-cat examples/amplicon/amplicon_test_example/wf-amplicon_*/output/all-consensus-seqs.fasta.fai            # the targets (sample01 2156, sample02 3283)
+cat examples/amplicon/reference_run_wf-amplicon/output/all-consensus-seqs.fasta.fai            # the targets (sample01 2156, sample02 3283)
 ```
 The **lengths** should match (~2,156 + ~3,283 bp). The exact bases may differ by a few if your basecaller
 model/params differ from the reference (300/Q15, de-novo) — expected, like the plasmid AUTO-vs-matched-params
@@ -152,7 +153,7 @@ model is bundled, it still completes; if it tries to download a model, this is w
 ```bash
 mkdir -p amp_out_offline && chmod 777 amp_out_offline     # writable by uid 1000 (see the §4 note above)
 docker run --rm --network none "${RUNARGS[@]}" \
-  -v "$PWD/examples/amplicon/amplicon_test_example":/data:ro -v "$PWD/amp_out_offline":/out \
+  -v "$PWD/examples/amplicon/raw":/data:ro -v "$PWD/amp_out_offline":/out \
   "$IMG" amplicon_validate.sh /data /out none 300 15
 ```
 **Pass:** a consensus FASTA is produced for each barcode that had enough reads, the report renders, and

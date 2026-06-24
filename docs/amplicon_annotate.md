@@ -110,7 +110,7 @@ built; this section supersedes that note.)
 ## Offline / correctness
 
 Validated on a host against the committed example
-([`examples/amplicon/amplicon_test_example/`](../examples/amplicon/README.md), two amplicons ~2,156 &
+([`examples/amplicon/`](../examples/amplicon/README.md), two amplicons ~2,156 &
 ~3,283 bp): each consensus is annotated (Gateway recombination sites plus gene / promoter / terminator
 elements, against the bundled SnapGene/Swiss-Prot/fpbase/Rfam DBs), the GenBank is `linear`, and each
 per-sample **combined report** (`amplicon-report-with-annotation.html`) renders the

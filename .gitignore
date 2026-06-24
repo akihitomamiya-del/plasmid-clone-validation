@@ -43,8 +43,8 @@ __pycache__/
 # `amplicon/` pipeline-output dir-name, etc.). These negations re-include ONLY the shipped
 # fixtures under examples/. Order matters (last match wins) and DIRECTORIES must be
 # re-included BEFORE files: `!examples/**/` defeats the bare `output/` and `amplicon/`
-# dir-ignores so git descends into examples/amplicon and the wf-amplicon_*/output and
-# reference_run_canu/output trees; `!examples/**` then defeats *.fastq.gz / *.bam / *.fastq.
+# dir-ignores so git descends into the nested reference_run_*/output trees;
+# `!examples/**` then defeats *.fastq.gz / *.bam / *.fastq.
 !examples/
 !examples/**/
 !examples/**

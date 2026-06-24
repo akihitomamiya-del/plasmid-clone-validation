@@ -17,5 +17,7 @@ holding **one folder per barcode** (`barcodeNN/`, two-digit), each with `*.fastq
   (1 contig, **5,652 bp**, "Completed successfully"). See its own README.
 
 ## `amplicon/` — wf-amplicon + annotation
-- See [`amplicon/README.md`](amplicon/README.md) — where an amplicon example fixture + its reference
-  run live, and how to drop in a new one.
+- `raw/barcode18/`, `raw/barcode21/` — two distinct amplicons, one concatenated `*.fastq.gz` each; the
+  input to `amplicon_validate.sh` (plus `raw/amplicon_samplesheet_example.csv`).
+- `reference_run_wf-amplicon/` — EPI2ME wf-amplicon de-novo reference run = the amplicon **correctness
+  target** (consensuses **~2,156 + ~3,283 bp**). See [`amplicon/README.md`](amplicon/README.md).

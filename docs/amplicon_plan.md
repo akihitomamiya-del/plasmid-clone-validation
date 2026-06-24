@@ -75,7 +75,7 @@ products don't overlap/co-map). Three ways to reconstruct each amplicon:
 
 Each amplicon's consensus then flows through the same Stage 3 (plannotate, linear) + Stages 4–5 (annotation +
 combined report) as Mode A, with one sub-section + one `.gbk` per amplicon. The committed example
-(`examples/amplicon/amplicon_test_example/`, two distinct amplicons) validates B2-reffree with **public
+(`examples/amplicon/raw/`, two distinct amplicons) validates B2-reffree with **public
 data**: mixing its two barcodes into one and running `SPLIT=1` yields 2 clean clusters → both consensuses
 recovered at **100% identity** (2026-06-24). `amplicon_validate.sh` carries a `REF=` hook (off by default;
 prints a FUTURE warning) so the reference path (B1) can be enabled without restructuring.
@@ -421,15 +421,16 @@ Critical gotchas:
   `combined-report.html`.
 - Confirming the Nextflow SIF cache filenames (the #1 silent offline-breaker).
 - Any `.devcontainer/build/` change.
-- ✅ Example amplicon data + correctness target committed: `examples/amplicon/amplicon_test_example/`
+- ✅ Example amplicon data + correctness target committed under `examples/amplicon/`
   (de-identified; 2 barcodes → 2 amplicons, ~2,156 & ~3,283 bp). Re-running it end-to-end through
   `amplicon_validate.sh` reproduces both consensuses + the combined report (validated 2026-06-24).
 
-**Example data — committed, de-identified (status 2026-06-24).** The amplicon example fixture is
-`examples/amplicon/amplicon_test_example/` — a self-contained dir (`barcode18/` + `barcode21/` reads + a
-`wf-amplicon_*/` EPI2ME reference run, the correctness target — the amplicon analogue of
-`examples/plasmid/reference_run_canu/`). It is **two distinct amplicons** (~2,156 & ~3,283 bp), so it also
-exercises multi-barcode runs and (by mixing the two barcodes) the reference-free Mode B / `SPLIT` path. An
+**Example data — committed, de-identified (status 2026-06-24).** The amplicon example mirrors the plasmid
+layout — `examples/amplicon/raw/` (`barcode18/` + `barcode21/`, one concatenated `*.fastq.gz` each, + the
+`amplicon_samplesheet_example.csv`) and a sibling `examples/amplicon/reference_run_wf-amplicon/` (the EPI2ME
+reference run = the correctness target, the amplicon analogue of `examples/plasmid/reference_run_canu/`). It
+is **two distinct amplicons** (~2,156 & ~3,283 bp), so it also exercises multi-barcode runs and (by mixing
+the two barcodes) the reference-free Mode B / `SPLIT` path. An
 earlier single-amplicon fixture was removed (its insert exposed unpublished work); this dataset replaces it.
 The committed allowlist is the single `!examples/**` block in `.gitignore` (no per-fixture lines).
 wf-amplicon's bundled `test_data/` is a data-free fallback for a smoke test. How a clean-room tester drives
