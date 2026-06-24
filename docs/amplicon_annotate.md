@@ -109,9 +109,10 @@ built; this section supersedes that note.)
 
 ## Offline / correctness
 
-Validated on a host against a committed amplicon example (a single ~3,249 bp amplicon; that fixture is
-currently being replaced — see [`examples/amplicon/README.md`](../examples/amplicon/README.md)): the run
-found 5 elements — `IS1` (transposon), `attB2` (Gateway site), `insB1` (CDS) + 2 weak Swiss-Prot hits —
-the GenBank is `linear`, and the **combined report** (`amplicon-report-with-annotation.html`) renders the
+Validated on a host against the committed example
+([`examples/amplicon/amplicon_test_example/`](../examples/amplicon/README.md), two amplicons ~2,156 &
+~3,283 bp): each consensus is annotated (Gateway recombination sites plus gene / promoter / terminator
+elements, against the bundled SnapGene/Swiss-Prot/fpbase/Rfam DBs), the GenBank is `linear`, and each
+per-sample **combined report** (`amplicon-report-with-annotation.html`) renders the
 wf-amplicon QC plots plus the annotation's two maps + table in one self-contained file. No network access
 is used; all BLAST databases ship in the SIF.

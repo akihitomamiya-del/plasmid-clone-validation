@@ -25,8 +25,8 @@ BLAST annotation** of that consensus + an offline HTML report — `amplicon_vali
   validated flye-`SIGFPE` mechanism, the data-driven peak finder (`estimate_length_peak.sh`), inside-vs-outside.
 - **Amplicon pipeline:** `docs/amplicon_plan.md` (design/roadmap), `docs/amplicon_annotate.md` (the
   pLannotate BLAST annotation + HTML report), `docs/amplicon_testing.md` (host build/test). Code:
-  `amplicon_validate.sh` + `amplicon_annotate/`; example fixture: `examples/amplicon/` (no committed fixture
-  currently — being replaced; see `examples/amplicon/README.md`).
+  `amplicon_validate.sh` + `amplicon_annotate/`; example + correctness target:
+  `examples/amplicon/amplicon_test_example/` (de-identified; 2 barcodes → 2 amplicons, ~2,156 & ~3,283 bp).
 - `examples/plasmid/reference_run_canu/` — EPI2ME **canu** reference output = the build's correctness target
   (expected: **1 contig, 5,652 bp, "Completed successfully"**; that run used `approx_size=5000`).
 - `README.md` — quickstart + **"Before you build"** host prerequisites/secrets + the **PI amplicon
@@ -102,9 +102,9 @@ don't make them recall a flag:
   one product. `SPLIT=1 amplicon_validate.sh …` runs `amplicon_split.sh` first — **reference-free** read
   clustering by `minimap2 -x ava-ont` overlap (union-find) → one wf-amplicon sample (`barcodeNN_cK`) per
   amplicon → each assembled + annotated in the one combined report. **Distinct-locus only** (amplicons sharing
-  a region longer than `SPLIT_MIN_OVERLAP` merge → use `REF=`). `none` filter mode only. Validated locally on
-  two distinct amplicons (3.2kb + 1.6kb) mixed → both recovered @100%. See `docs/amplicon_plan.md`
-  §3 (B2-reffree). (Those amplicons are kept local-only — `.gitignore` excludes `examples/amplicon/barcode39_example/`.)
+  a region longer than `SPLIT_MIN_OVERLAP` merge → use `REF=`). `none` filter mode only. Validated on the
+  committed example (`examples/amplicon/amplicon_test_example/`): mixing its two barcodes into one →
+  2 clusters → both amplicons (~2,156 & ~3,283 bp) recovered @100%. See `docs/amplicon_plan.md` §3 (B2-reffree).
 - **SIF cache filenames** Nextflow expects must be confirmed by one online run (`docs/sif_cache.md`) —
   the #1 thing that silently breaks offline.
 - **Assembler is THE critical lever (validated 2026-06-21):** `clone_validate.sh` now **defaults to

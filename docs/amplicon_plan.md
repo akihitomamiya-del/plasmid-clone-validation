@@ -74,10 +74,11 @@ products don't overlap/co-map). Three ways to reconstruct each amplicon:
   stretch longer than `SPLIT_MIN_OVERLAP` merge into one cluster (use B1); short fragments below `min_len` drop.
 
 Each amplicon's consensus then flows through the same Stage 3 (plannotate, linear) + Stages 4–5 (annotation +
-combined report) as Mode A, with one sub-section + one `.gbk` per amplicon. No amplicon fixture is committed
-right now (the example is being replaced — see `examples/amplicon/README.md`); the amplicons used to validate
-B2-reffree are local-only. `amplicon_validate.sh` carries a `REF=` hook (off by default; prints a FUTURE
-warning) so the reference path (B1) can be enabled without restructuring.
+combined report) as Mode A, with one sub-section + one `.gbk` per amplicon. The committed example
+(`examples/amplicon/amplicon_test_example/`, two distinct amplicons) validates B2-reffree with **public
+data**: mixing its two barcodes into one and running `SPLIT=1` yields 2 clean clusters → both consensuses
+recovered at **100% identity** (2026-06-24). `amplicon_validate.sh` carries a `REF=` hook (off by default;
+prints a FUTURE warning) so the reference path (B1) can be enabled without restructuring.
 
 ---
 
@@ -420,28 +421,25 @@ Critical gotchas:
   `combined-report.html`.
 - Confirming the Nextflow SIF cache filenames (the #1 silent offline-breaker).
 - Any `.devcontainer/build/` change.
-- ⏳ Example amplicon data + correctness target: **pending**. A committed fixture (a single ~3,249 bp
-  amplicon) previously lived under `examples/amplicon/`; it was **removed** pending replacement with a new
-  non-sensitive dataset. When it lands at `examples/amplicon/<name>_example/`, re-run it end-to-end through
-  `amplicon_validate.sh` to confirm the consensus reproduces from the freshly-built image.
+- ✅ Example amplicon data + correctness target committed: `examples/amplicon/amplicon_test_example/`
+  (de-identified; 2 barcodes → 2 amplicons, ~2,156 & ~3,283 bp). Re-running it end-to-end through
+  `amplicon_validate.sh` reproduces both consensuses + the combined report (validated 2026-06-24).
 
-**Example data — being replaced (status 2026-06-24).** The amplicon example fixture lives under
-`examples/amplicon/` as a self-contained dir (`barcodeNN/` reads + its EPI2ME reference run, the correctness
-target — the amplicon analogue of `examples/plasmid/reference_run_canu/`). The previous committed fixture (a
-single ~3,249 bp amplicon) was **removed** to be replaced with new, non-sensitive data; see
-`examples/amplicon/README.md`. A second distinct amplicon (the multiplex/Mode B second product) is kept
-**local-only** — `.gitignore` excludes `examples/amplicon/barcode39_example/` because its insert exposes
-unpublished research; do not commit it. The committed allowlist is the single `!examples/**` block in
-`.gitignore`. wf-amplicon's bundled `test_data/` is a data-free fallback for a smoke test.
-How a clean-room tester drives it: [`amplicon_testing.md`](amplicon_testing.md) §0/§4.
-> ✅ **De-identified for release (2026-06-23).** The committed run was scrubbed + trimmed: the lab
-> host/username → generic (`/home/user`, `validation-host`) across the kept
-> text files (both `params.json`, `nextflow.log`/`.stdout`, `launch.json`, `wf-amplicon-report.html`), and
-> the heavy/incidental outputs were dropped (the `.bam`/index, `barcode09.zip`, the Nextflow `execution/`
-> reports, the duplicate report-shim HTML) — footprint 15 MB → ~6 MB. The MinION run/flowcell ids
-> (`MN24660`, `BBW334`) are **kept on purpose**: they're part of the dataset identity and appear in the raw
-> FASTQ filenames and read headers (which medaka's auto-model reads), so scrubbing them only in side-files
-> would be inconsistent and would break the example.
+**Example data — committed, de-identified (status 2026-06-24).** The amplicon example fixture is
+`examples/amplicon/amplicon_test_example/` — a self-contained dir (`barcode18/` + `barcode21/` reads + a
+`wf-amplicon_*/` EPI2ME reference run, the correctness target — the amplicon analogue of
+`examples/plasmid/reference_run_canu/`). It is **two distinct amplicons** (~2,156 & ~3,283 bp), so it also
+exercises multi-barcode runs and (by mixing the two barcodes) the reference-free Mode B / `SPLIT` path. An
+earlier single-amplicon fixture was removed (its insert exposed unpublished work); this dataset replaces it.
+The committed allowlist is the single `!examples/**` block in `.gitignore` (no per-fixture lines).
+wf-amplicon's bundled `test_data/` is a data-free fallback for a smoke test. How a clean-room tester drives
+it: [`amplicon_testing.md`](amplicon_testing.md) §0/§4.
+> ✅ **De-identified for public release (2026-06-24).** Scrubbed across all kept files: the lab host/username
+> (→ `/home/user`, `validation-host`), a project codename (incl. inside the raw FASTQ read headers), and the
+> sample aliases (→ `sample01`/`sample02`). Heavy/incidental outputs were dropped (the `.bam`/index, the
+> Nextflow `execution/` reports, `igv.json`, the report shim). The MinION run/flowcell ids (`MN24660`,
+> `BCB599`) are **kept on purpose** — they're dataset identity and appear in the read headers (which medaka's
+> auto-model reads). See `examples/amplicon/README.md`.
 
 ---
 

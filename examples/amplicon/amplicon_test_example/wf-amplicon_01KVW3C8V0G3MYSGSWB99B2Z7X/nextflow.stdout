@@ -1,0 +1,93 @@
+N E X T F L O W  ~  version 23.04.2
+Launching `/home/user/epi2melabs/workflows/epi2me-labs/wf-amplicon/v1.2.1/main.nf` [elastic_lovelace] DSL2 - revision: 087ada567e
+
+[0;92m||||||||||   [0m[2m_____ ____ ___ ____  __  __ _____
+[0;92m||||||||||  [0m[2m| ____|  _ \_ _|___ \|  \/  | ____|
+[0;33m|||||       [0m[2m|  _| | |_) | |  __) | |\/| |  _|
+[0;33m|||||       [0m[2m| |___|  __/| | / __/| |  | | |__
+[0;94m||||||||||  [0m[2m|_____|_|  |___|_____|_|  |_|_____|
+[0;94m||||||||||  [0m[1mwf-amplicon v1.2.1[0m
+[2m--------------------------------------------------------------------------------[0m
+[1mCore Nextflow options[0m
+  [0;34mrunName        : [0;32melastic_lovelace[0m
+  [0;34mcontainerEngine: [0;32mdocker[0m
+  [0;34mlaunchDir      : [0;32m/home/user/epi2melabs/instances/wf-amplicon_01KVW3C8V0G3MYSGSWB99B2Z7X[0m
+  [0;34mworkDir        : [0;32m/home/user/epi2melabs/instances/wf-amplicon_01KVW3C8V0G3MYSGSWB99B2Z7X/work[0m
+  [0;34mprojectDir     : [0;32m/home/user/epi2melabs/workflows/epi2me-labs/wf-amplicon/v1.2.1[0m
+  [0;34muserName       : [0;32muser[0m
+  [0;34mprofile        : [0;32mstandard[0m
+  [0;34mconfigFiles    : [0;32m/home/user/epi2melabs/workflows/epi2me-labs/wf-amplicon/v1.2.1/nextflow.config[0m
+
+[1mInput Options[0m
+  [0;34mfastq          : [0;32m/home/user/Desktop/miknow_data/260612_example/plasmid_amplicon_example/20260612_1722_MN24660_BCB599_2cacc6e4/fastq_pass[0m
+
+[1mSample Options[0m
+  [0;34msample_sheet   : [0;32m/home/user/Desktop/Plasmid_analysis/260612_example/amplicon_samplesheet_example.csv[0m
+
+[1mOutput Options[0m
+  [0;34mout_dir        : [0;32m/home/user/epi2melabs/instances/wf-amplicon_01KVW3C8V0G3MYSGSWB99B2Z7X/output[0m
+  [0;34migv            : [0;32mtrue[0m
+
+[1mMiscellaneous Options[0m
+  [0;34mthreads        : [0;32m16[0m
+  [0;34mstore_dir      : [0;32m/home/user/epi2melabs/data[0m
+
+!! Only displaying parameters that differ from the pipeline defaults !!
+[2m--------------------------------------------------------------------------------[0m
+If you use epi2me-labs/wf-amplicon for your analysis please cite:
+
+* The nf-core framework
+  https://doi.org/10.1038/s41587-020-0439-x
+
+
+[2m--------------------------------------------------------------------------------[0m
+This is epi2me-labs/wf-amplicon v1.2.1.
+[2m--------------------------------------------------------------------------------[0m
+Searching input for [.fastq, .fastq.gz, .fq, .fq.gz] files.
+[8e/219fca] Submitted process > pipeline:getParams
+[53/7da5fc] Submitted process > validate_sample_sheet
+[36/6c8ca1] Submitted process > pipeline:getVersions
+[e4/b55393] Submitted process > fastcat (1)
+[83/5b9633] Submitted process > fastcat (2)
+[10/069a3e] Submitted process > pipeline:subsetReads (1)
+[98/fa1c6d] Submitted process > pipeline:subsetReads (2)
+[03/8da03f] Submitted process > pipeline:porechop (1)
+[10/587379] Submitted process > pipeline:porechop (2)
+[12/1979a6] Submitted process > pipeline:deNovoPipeline_asm:miniasm (1)
+[67/5d8054] Submitted process > pipeline:deNovoPipeline_asm:racon (1)
+[10/a9d46a] Submitted process > pipeline:deNovoPipeline_asm:alignDraft (1)
+[fc/2be75b] Submitted process > pipeline:deNovoPipeline_asm:bamstatsDraft (1)
+[a7/37db9d] Submitted process > pipeline:deNovoPipeline_asm:mosdepthPerBase (1)
+[d2/d32c13] Submitted process > pipeline:deNovoPipeline_asm:medakaInference (1)
+[96/21f297] Submitted process > pipeline:deNovoPipeline_asm:miniasm (2)
+[97/9240ab] Submitted process > pipeline:deNovoPipeline_asm:racon (2)
+[3a/fb1a3c] Submitted process > pipeline:deNovoPipeline_asm:alignDraft (2)
+[a8/c22c57] Submitted process > pipeline:deNovoPipeline_asm:bamstatsDraft (2)
+[00/d844b3] Submitted process > pipeline:deNovoPipeline_asm:medakaInference (2)
+[de/f1916e] Submitted process > pipeline:deNovoPipeline_asm:mosdepthPerBase (2)
+[9c/87d432] Submitted process > pipeline:deNovoPipeline_asm:medakaStitch (1)
+[8f/4b206a] Submitted process > pipeline:addMedakaToVersionsFile
+[9b/512b66] Submitted process > pipeline:deNovoPipeline_asm:medakaStitch (2)
+[bf/761ba6] Submitted process > pipeline:deNovoPipeline_asm:trimAndQC (1)
+[51/65498e] Submitted process > pipeline:deNovoPipeline_asm:alignPolished (1)
+[aa/d7b287] Submitted process > pipeline:deNovoPipeline_asm:bamstatsPolished (1)
+[1a/8aea91] Submitted process > pipeline:deNovoPipeline_asm:mosdepthWindows (1)
+[07/cbc658] Submitted process > pipeline:deNovoPipeline_asm:trimAndQC (2)
+[4d/016223] Submitted process > pipeline:deNovoPipeline_asm:alignPolished (2)
+[bc/67e774] Submitted process > pipeline:concatTSVs (1)
+[e5/126283] Submitted process > pipeline:concatTSVs (2)
+[4d/945d7c] Submitted process > pipeline:collectFilesInDir (1)
+[e7/d88a3f] Submitted process > pipeline:deNovoPipeline_asm:bamstatsPolished (2)
+[60/8c6563] Submitted process > pipeline:deNovoPipeline_asm:mosdepthWindows (2)
+[74/ba95bf] Submitted process > pipeline:collectFilesInDir (2)
+[91/4005fc] Submitted process > pipeline:catFastqIntoFasta
+[a2/9dfc18] Submitted process > pipeline:makeReport
+[a8/415600] Submitted process > publish (3)
+[93/6450e6] Submitted process > publish (7)
+[c8/14f96f] Submitted process > publish (2)
+[26/ba6df0] Submitted process > publish (1)
+[b7/14551e] Submitted process > publish (5)
+[04/335197] Submitted process > publish (8)
+[7d/4b58ff] Submitted process > publish (4)
+[d4/63d444] Submitted process > publish (6)
+[8a/d66dcd] Submitted process > pipeline:configure_igv (1)

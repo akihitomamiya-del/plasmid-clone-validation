@@ -48,12 +48,3 @@ __pycache__/
 !examples/
 !examples/**/
 !examples/**
-
-# ── LOCAL-ONLY amplicon (Mode B testing) — NEVER commit ──────────────────────────────
-# barcode39_example/'s insert exposes unpublished research. Re-ignored AFTER the allowlist
-# above (last match wins) so an accidental `git add` is blocked. BOTH lines are required:
-# the dir line blocks adding the folder; the `/**` line re-ignores the files that the
-# aggressive `!examples/**` above would otherwise re-include. Keep it on disk for local
-# SPLIT/Mode-B runs; do NOT commit.
-examples/amplicon/barcode39_example/
-examples/amplicon/barcode39_example/**
