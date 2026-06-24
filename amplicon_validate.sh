@@ -131,6 +131,9 @@ else
 fi
 (( n > 0 )) || { echo "ERROR: no barcodeNN samples prepared under $RAW" >&2; exit 1; }
 echo "Prepared $n sample(s) -> $NF_IN/"
+if (( n > 1 )); then
+    echo "  multi-barcode run: $n barcodes -> one consensus + one annotation each, folded into one combined report."
+fi
 
 # 2) build the nextflow command (de-novo: NO --reference; reference mode adds it)
 NF_CMD=(nextflow run epi2me-labs/wf-amplicon -r "${WF_VERSION:-v1.2.2}"
@@ -148,11 +151,12 @@ if command -v nextflow >/dev/null 2>&1; then
     ( cd "$OUT" && "${NF_CMD[@]}" )
     echo
     echo "== outputs =="
+    echo "  -- wf-amplicon (QC + consensus) --"
     echo "  workflow report : $OUT/amplicon/wf-amplicon-report.html"
     echo "  consensus (all) : $OUT/amplicon/all-consensus-seqs.fasta"
     echo "  per-sample      : $OUT/amplicon/<alias>/consensus/consensus.fastq"
-    # Stage 3-5: pLannotate (linear) BLAST annotation, its HTML report, and a
-    #            COMBINED report = the wf-amplicon report with the annotation spliced in.
+    # Stage 3-5: pLannotate (linear) BLAST annotation, its HTML report, a COMBINED report
+    #            (wf-amplicon report + annotation), and a deliverables/ bundle for the PI.
     CONS="$OUT/amplicon/all-consensus-seqs.fasta"
     if [[ -s "$CONS" ]] && command -v apptainer >/dev/null 2>&1; then
         echo
@@ -160,18 +164,31 @@ if command -v nextflow >/dev/null 2>&1; then
         if "$SCRIPT_DIR/amplicon_annotate/annotate.sh" "$CONS" "$OUT/annotation" \
                "$OUT/amplicon/params.json" "$OUT/amplicon/versions.txt" \
                "$OUT/amplicon/wf-amplicon-report.html"; then
-            COMBINED="$OUT/annotation/amplicon-report-with-annotation.html"
-            if [[ -f "$COMBINED" ]]; then
-                echo "  combined report  : $COMBINED   <- wf-amplicon report + annotation"
+            # annotate.sh prints the full manifest + the deliverables/ folder above; surface the headline.
+            DELIV="$OUT/deliverables"
+            echo
+            if [[ -d "$DELIV" ]]; then
+                echo "  ===== DELIVERABLES -- hand these to the PI ====="
+                echo "    $DELIV/   (open amplicon-report-with-annotation.html; README.txt explains every file)"
+                if [[ -f "$OUT/deliverables.zip" ]]; then
+                    echo "    bundle:  $OUT/deliverables.zip   (one file to email)"
+                fi
+            else
+                echo "  combined report : $OUT/annotation/amplicon-report-with-annotation.html"
             fi
-            echo "  annotation report: $OUT/annotation/amplicon-annotation-report.html"
         else
             echo "WARNING: annotation step failed; wf-amplicon consensus/QC remain in $OUT/amplicon." >&2
         fi
     elif [[ -s "$CONS" ]]; then
-        echo "Consensus ready; annotation needs Apptainer (skipped on this host) -- see docs/amplicon_plan.md."
+        echo
+        echo "  NOTE: consensus ready, but annotation needs Apptainer (skipped on this host)."
+        echo "        You get consensus + QC only -- run inside the Apptainer runtime image for the"
+        echo "        combined report + GenBank. See docs/amplicon_plan.md."
     else
-        echo "No consensus produced -> skipping annotation."
+        echo
+        echo "  ===== NO DELIVERABLE: wf-amplicon produced no consensus ====="
+        echo "    No annotation was run. Inspect the QC report: $OUT/amplicon/wf-amplicon-report.html"
+        echo "    (Likely too few/low-quality reads -- check min_read_length=$MINLEN / min_read_qual=$MINQ per barcode.)"
     fi
 else
     echo

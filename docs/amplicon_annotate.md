@@ -24,6 +24,12 @@ For each consensus record (one per barcode in de-novo mode):
 | `<sample>.annotations.gbk` | a **linear** GenBank record (topology `linear`, not `circular`) |
 | `plannotate_report.json` | the raw annotation dataframe (drives the report) |
 
+**Deliverables bundle.** After the report, `annotate.sh` also gathers the PI-facing files into one tidy
+`<out>/deliverables/` folder (+ `deliverables.zip` + a plain-text `README.txt`): the combined report, the
+wf-amplicon QC report, the consensus FASTA, `feature_table.txt`, and per-sample `<barcode>_<bp>bp.{gbk,bed,
+consensus.fasta}` (copies — originals under `amplicon/`/`annotation/` are untouched). This is the folder to
+hand to a collaborator. It is created in both entry modes (full pipeline and standalone `annotate.sh`).
+
 ## How it runs
 
 `amplicon_validate.sh` calls it automatically after a successful `wf-amplicon` run (when a consensus was

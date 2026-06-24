@@ -28,7 +28,27 @@ BLAST annotation** of that consensus + an offline HTML report — `amplicon_vali
   `amplicon_validate.sh` + `amplicon_annotate/`; example + correctness target: `amplicon_test_example/`.
 - `reference_run_canu/` — EPI2ME **canu** reference output = the build's correctness target
   (expected: **1 contig, 5,652 bp, "Completed successfully"**; that run used `approx_size=5000`).
-- `README.md` — quickstart + **"Before you build"** host prerequisites/secrets.
+- `README.md` — quickstart + **"Before you build"** host prerequisites/secrets + the **PI amplicon
+  walkthrough** (run the example → your data → open the report).
+
+## Playbook: "run the amplicon workflow with annotation" (a PI request)
+When the user asks in plain language to **run the amplicon workflow (with annotation) on a directory**
+(e.g. *"run the amplicon validation on runs/plate3"*, *"annotate the amplicons in <dir>"*), just do it —
+don't make them recall a flag:
+1. **One entrypoint:** `./amplicon_validate.sh <raw_dir> <out_dir>`. `<raw_dir>` is the dir they named;
+   **expected layout `<raw_dir>/barcodeNN/*.fastq.gz`** (two-digit barcodes). If they gave no out dir, use
+   `runs/<basename-of-raw_dir>` and say where it went. **No other args** — leave `none 300 15` (medaka
+   auto-picks its model from the read headers); add a pre-filter / `REF=` / `OVERRIDE_BASECALLER_CFG` only
+   if explicitly asked. This runs wf-amplicon de-novo **then** the annotation + combined report + the
+   deliverables bundle automatically.
+2. **Report back, leading with the bundle:** `<out_dir>/deliverables/` (a tidy folder — open
+   `amplicon-report-with-annotation.html`; `README.txt` explains every file) and `<out_dir>/deliverables.zip`.
+   The key per-file paths (combined report, `<barcode>_<bp>bp.gbk`, `feature_table.txt`) are echoed by the
+   wrapper — relay those as clickable paths. To view the HTML in-container: right-click → Live Preview.
+3. **Multi-barcode** is normal: one consensus + one `.gbk` per barcode, all folded into the one combined
+   report and the one bundle. Say how many barcodes were annotated.
+4. **If it fails / no consensus:** the wrapper prints a `NO DELIVERABLE` banner — relay it plainly, point at
+   `<out_dir>/amplicon/wf-amplicon-report.html`, and don't claim an annotation was produced.
 
 ## Locked decisions (don't re-litigate)
 - Integration = **pre-filter wrapper** (`clone_validate.sh`), NOT a fork of the workflow.

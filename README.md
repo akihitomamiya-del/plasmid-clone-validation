@@ -1,15 +1,62 @@
 # plasmid-clone-validation
 
-CLI tooling to run Oxford Nanopore's **EPI2ME `wf-clone-validation`** pipeline with custom
-read pre-filtering (length window + mean Q-score) applied *before* assembly.
+CLI tooling for Oxford Nanopore data, with **two pipelines**:
+- **Plasmid clones** — EPI2ME **`wf-clone-validation`** (assembly + QC) with custom read pre-filtering
+  (length window + mean Q-score) applied *before* assembly.
+- **Amplicons** — EPI2ME **`wf-amplicon`** (de-novo consensus) plus pLannotate BLAST **annotation** and one
+  combined report. → **[Amplicon quick start](#amplicon-quick-start-with-annotation)**.
 
 Integration approach: a **pre-filter wrapper** — our filter runs first, then the unmodified
 `wf-clone-validation` workflow consumes the filtered reads. (The EPI2ME Desktop app is just a
 GUI over this Nextflow workflow; it is CLI-native.)
 
-> **New here and just want to run it?** Start with **[`docs/getting_started.md`](docs/getting_started.md)**
-> — a step-by-step walkthrough (no Nextflow/Docker/this-repo knowledge assumed): get the image, run the
-> shipped example, run your own data, read the report. The rest of this README is the terse reference.
+> **New here and just want to run it?**
+> - **Amplicon reads** (de-novo consensus + annotation) → **[Amplicon quick start](#amplicon-quick-start-with-annotation)** just below.
+> - **Plasmid clones** (assembly + QC) → **[`docs/getting_started.md`](docs/getting_started.md)**, a step-by-step walkthrough.
+>
+> The rest of this README is the terse reference.
+
+## Amplicon quick start (with annotation)
+
+**Got Oxford Nanopore amplicon reads and want an annotated report?** Three steps.
+
+**1 — Put your reads in barcode folders.** One folder per barcode, named `barcode01`, `barcode02`, … (this
+is how MinKNOW already saves them):
+
+```
+my_amplicons/
+  barcode01/   *.fastq.gz      ← one amplicon (one PCR product) per barcode
+  barcode02/   *.fastq.gz
+```
+
+**2 — Run one command** (inside the devcontainer, where Nextflow + Apptainer are already set up):
+
+```bash
+./amplicon_validate.sh my_amplicons runs/my_amplicons
+```
+
+It builds a consensus sequence for each barcode, finds known elements in it (genes, promoters, sites…) by
+BLAST, and makes one report. **Prefer to just ask Claude?** Say *“run the amplicon workflow with annotation
+on my_amplicons”* — it runs the same thing and points you to the report.
+
+**3 — Open your results.** Everything you need is gathered into one folder:
+
+```
+runs/my_amplicons/deliverables/
+  amplicon-report-with-annotation.html   ← OPEN THIS  (QC + annotated features, one page)
+  barcode01_3249bp.gbk                    ← annotated GenBank — open in SnapGene / Benchling / ApE
+  feature_table.txt                       ← every feature, as a spreadsheet (Excel)
+  README.txt                              ← says what each file is
+  …                                       (one .gbk per barcode; plus deliverables.zip to email)
+```
+
+To view the `.html` inside VS Code: right-click it → **Show Preview**.
+
+> **First time on this machine?** Two one-time admin steps are needed (pull the image; load the Apptainer
+> security profile) — see **[Before you build](#before-you-build-host-prerequisites--secrets)**. After that,
+> it's just the one command above (or asking Claude).
+
+Full amplicon reference (options, how it works, the annotation): **[`docs/amplicon_annotate.md`](docs/amplicon_annotate.md)**.
 
 ## Contents
 
@@ -18,6 +65,7 @@ GUI over this Nextflow workflow; it is CLI-native.)
 | `filter_nanopore_reads.sh` | Concatenate per-barcode FASTQs and select reads by length window + mean Q (uses `seqkit seq`, the Nanopore error-probability mean-Q). |
 | `estimate_length_peak.sh` | **Data-driven** read-length peak finder: estimates the full-length plasmid read-length mode and derives a length window (no hand-picked threshold), then filters reads for assembly. Feeds `clone_validate.sh`. |
 | `clone_validate.sh` | Wrapper: select reads → reshape to the `barcodeNN/` layout `--fastq` expects → `nextflow run … -r v1.8.4`. **Defaults to canu**; `auto` mode does per-sample data-driven sizing (peak → window + `approx_size` via a generated sample sheet). `approx_size` guard; extra flags via `EXTRA_NF_ARGS`. |
+| `amplicon_validate.sh` + `amplicon_annotate/` | **Amplicon pipeline** (the other half of this repo): run ONT `wf-amplicon` de-novo consensus → pLannotate BLAST **annotation** → one **combined report** + a tidy `deliverables/` bundle. See the [Amplicon quick start](#amplicon-quick-start-with-annotation) and [`docs/amplicon_annotate.md`](docs/amplicon_annotate.md). |
 | `docs/getting_started.md` | **Start here if you're new** — a linear beginner walkthrough: get image access, run the shipped example, run your own data, read the HTML report; troubleshooting + glossary. |
 | `.devcontainer/README.md` | **Authoritative** devcontainer guide: runtime image vs Claude sandbox, the containment model, host prereq, build-vs-pull. |
 | `docs/sif_cache.md` | **How to pre-stage the 5 workflow images as SIF** (exact SHAs + the Nextflow cache-filename convention) so it runs offline. |

@@ -122,6 +122,96 @@ if [[ -n "$BASE_REPORT" ]]; then
     fi
 fi
 
+# --- 5) Deliverables: gather the PI-facing files into one tidy folder (+ README + zip) ---
+#     COPIES only (originals under amplicon/ and annotation/ are untouched). Per-sample files
+#     are named <sample>_<bp>bp.<ext>; run-level files keep descriptive names. Runs in both
+#     entry modes (full pipeline and standalone annotate.sh); never fails the run on a hiccup.
+DELIV_DIR=""; DELIV_ZIP=""
+build_deliverables() {
+    local run_root deliv amp fai samples sample bp slice main_report
+    # Run-root = the user's <out>: parent of annotation/ when called from the pipeline
+    # (sibling amplicon/ present); else fall back to $OUT itself (standalone annotate.sh).
+    if [[ "$(basename "$OUT")" == "annotation" && -d "$(dirname "$OUT")/amplicon" ]]; then
+        run_root="$(dirname "$OUT")"
+    else
+        run_root="$OUT"
+    fi
+    deliv="$run_root/deliverables"; rm -rf "$deliv"; mkdir -p "$deliv"
+    amp="$run_root/amplicon"; fai="$amp/all-consensus-seqs.fasta.fai"
+
+    bp_for() {  # $1 = sample -> length in bp (".fai" first, gbk LOCUS fallback, else NA)
+        local n=""
+        [[ -f "$fai" ]] && n="$(awk -v s="$1" '$1==s{print $2; exit}' "$fai")"
+        [[ -z "$n" && -f "$OUT/$1.annotations.gbk" ]] && n="$(awk '/^LOCUS/{print $3; exit}' "$OUT/$1.annotations.gbk")"
+        printf '%s' "${n:-NA}"
+    }
+
+    # run-level files (span all samples). Prefer the combined report; else the annotation-only one.
+    main_report=""
+    if [[ -n "$MERGED" && -f "$MERGED" ]]; then
+        cp -f "$MERGED" "$deliv/amplicon-report-with-annotation.html"; main_report="amplicon-report-with-annotation.html"
+    elif [[ -f "$REPORT" ]]; then
+        cp -f "$REPORT" "$deliv/amplicon-annotation-report.html";      main_report="amplicon-annotation-report.html"
+    fi
+    [[ -f "$CONSENSUS" ]]             && cp -f "$CONSENSUS"             "$deliv/all-consensus-seqs.fasta"
+    [[ -f "$OUT/feature_table.txt" ]] && cp -f "$OUT/feature_table.txt" "$deliv/feature_table.txt"
+    [[ -n "$BASE_REPORT" && -f "$BASE_REPORT" ]] && cp -f "$BASE_REPORT" "$deliv/wf-amplicon-QC-report.html"
+
+    # per-sample files: one {.gbk,.bed,.consensus.fasta} trio per >record in the consensus FASTA
+    samples="$(awk '/^>/{n=substr($1,2); sub(/[ \t].*/,"",n); print n}' "$CONSENSUS")"
+    while IFS= read -r sample; do
+        [[ -n "$sample" ]] || continue
+        bp="$(bp_for "$sample")"
+        [[ -f "$OUT/$sample.annotations.gbk" ]] && cp -f "$OUT/$sample.annotations.gbk" "$deliv/${sample}_${bp}bp.gbk"
+        [[ -f "$OUT/$sample.annotations.bed" ]] && cp -f "$OUT/$sample.annotations.bed" "$deliv/${sample}_${bp}bp.bed"
+        slice="$deliv/${sample}_${bp}bp.consensus.fasta"
+        awk -v s="$sample" '/^>/{keep=(substr($1,2)==s)} keep{print}' "$CONSENSUS" > "$slice"
+        [[ -s "$slice" ]] || rm -f "$slice"
+    done <<< "$samples"
+
+    # README.txt: plain-text index, generated to match what actually got copied
+    {
+        echo "Amplicon clone validation -- deliverables"
+        echo "Run output: $run_root"
+        echo
+        echo "START HERE"
+        if [[ "$main_report" == amplicon-report-with-annotation.html ]]; then
+            echo "  amplicon-report-with-annotation.html"
+            echo "      *** MAIN REPORT *** wf-amplicon QC + annotation in one page. Open in a web browser."
+        elif [[ -n "$main_report" ]]; then
+            echo "  $main_report"
+            echo "      Annotation report (the combined report was not produced). Open in a web browser."
+        fi
+        echo
+        echo "FILES"
+        [[ -f "$deliv/wf-amplicon-QC-report.html" ]] && echo "  wf-amplicon-QC-report.html   ONT wf-amplicon QC report. Web browser."
+        [[ -f "$deliv/all-consensus-seqs.fasta" ]]   && echo "  all-consensus-seqs.fasta     Consensus sequence(s), one per barcode. SnapGene / text editor."
+        [[ -f "$deliv/feature_table.txt" ]]          && echo "  feature_table.txt            All annotated features (CSV). Excel / spreadsheet."
+        echo
+        echo "PER SAMPLE (barcode_lengthbp)"
+        while IFS= read -r sample; do
+            [[ -n "$sample" ]] || continue
+            bp="$(bp_for "$sample")"
+            echo "  ${sample} (${bp} bp):"
+            [[ -f "$deliv/${sample}_${bp}bp.gbk" ]]            && echo "      ${sample}_${bp}bp.gbk             GenBank annotation. SnapGene / Benchling / ApE."
+            [[ -f "$deliv/${sample}_${bp}bp.bed" ]]            && echo "      ${sample}_${bp}bp.bed             Feature intervals (BED). IGV / genome browsers."
+            [[ -f "$deliv/${sample}_${bp}bp.consensus.fasta" ]] && echo "      ${sample}_${bp}bp.consensus.fasta  This barcode's consensus only."
+        done <<< "$samples"
+    } > "$deliv/README.txt"
+
+    # single ZIP bundle for emailing (best-effort; never fail the run on this)
+    local zip_path="$run_root/deliverables.zip"; rm -f "$zip_path"
+    if command -v zip >/dev/null 2>&1; then
+        ( cd "$run_root" && zip -q -r "deliverables.zip" "deliverables" )
+    elif command -v python3 >/dev/null 2>&1; then
+        ( cd "$run_root" && python3 -m zipfile -c "deliverables.zip" "deliverables" )
+    else
+        echo "NOTE: neither 'zip' nor python3 found -- deliverables/ folder is ready, ZIP skipped." >&2; zip_path=""
+    fi
+    DELIV_DIR="$deliv"; DELIV_ZIP="$zip_path"
+}
+build_deliverables || echo "WARNING: deliverables packaging failed; per-file outputs under $OUT are intact." >&2
+
 echo
 echo "== annotation outputs =="
 if [[ -n "$MERGED" ]]; then
@@ -130,3 +220,11 @@ fi
 echo "  annotation report: $REPORT"
 echo "  feature table   : $OUT/feature_table.txt"
 echo "  per-record files: $OUT/<sample>.annotations.{bed,gbk}, plannotate_report.json"
+if [[ -n "$DELIV_DIR" ]]; then
+    echo
+    echo "== deliverables (hand these to the PI) =="
+    echo "  folder : $DELIV_DIR/   (README.txt explains every file)"
+    if [[ -n "$DELIV_ZIP" ]]; then
+        echo "  bundle : $DELIV_ZIP"
+    fi
+fi

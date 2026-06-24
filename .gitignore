@@ -22,6 +22,8 @@ nf_input/
 cloneval/
 amplicon/
 annotation/
+deliverables/
+deliverables.zip
 runs/
 output/
 results/
