@@ -73,13 +73,13 @@ assembler, not the read filtering.**
 ## Test matrix (~6 runs on the example data)
 
 **Wrapper limitation:** `clone_validate.sh` now passes extra Nextflow args via the `EXTRA_NF_ARGS`
-env var (added for exactly this). The example raw input is `example_rawdata/barcode69/` (the
+env var (added for exactly this). The example raw input is `examples/plasmid/raw/barcode69/` (the
 unfiltered ~765-read concat); filtering to 5–6 kb/Q20 yields ~128 reads (matching the shipped
-reference `example_rawdata/barcode69.len5kb-6kb_q20.fastq.gz`). Use `PROFILE=singularity` inside the
+reference `examples/plasmid/raw/barcode69.len5kb-6kb_q20.fastq.gz`). Use `PROFILE=singularity` inside the
 devcontainer, `PROFILE=standard` on a Docker host.
 
 ```bash
-RAW=example_rawdata; W="5000 20 6000"   # min_len=5000 min_qual=20 max_len=6000
+RAW=examples/plasmid/raw; W="5000 20 6000"   # min_len=5000 min_qual=20 max_len=6000
 
 # 1. canu baseline (known-good)
 EXTRA_NF_ARGS="--assembly_tool canu --assm_coverage 60" \

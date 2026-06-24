@@ -77,7 +77,7 @@ runArgs — no sudo, no `--privileged`, global userns sysctl untouched. The bake
 
 ```bash
 EXTRA_NF_ARGS="--assembly_tool canu --assm_coverage 60" PROFILE=singularity \
-  ./clone_validate.sh example_rawdata runs/cv_canu 5000 5000 20 6000
+  ./clone_validate.sh examples/plasmid/raw runs/cv_canu 5000 5000 20 6000
 
 cat runs/cv_canu/cloneval/sample_status.txt                    # expect: barcode69,Completed successfully,5652
 
@@ -87,7 +87,7 @@ md5sum runs/cv_canu/cloneval/*/*.final.fasta 2>/dev/null || \
 ```
 Nextflow drives a nested rootless Apptainer per process, entirely from the baked SIF cache (no registry
 egress). Pass = **1 contig, 5,652 bp, "Completed successfully"** and **byte-identical** output
-(md5 `2b78d8db…7538c`), matching `reference_run_canu/`.
+(md5 `2b78d8db…7538c`), matching `examples/plasmid/reference_run_canu/`.
 
 ## 5. Yolo Claude (the point of the sandbox) — **`claude-code` config only**
 

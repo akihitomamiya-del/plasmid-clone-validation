@@ -74,12 +74,10 @@ products don't overlap/co-map). Three ways to reconstruct each amplicon:
   stretch longer than `SPLIT_MIN_OVERLAP` merge into one cluster (use B1); short fragments below `min_len` drop.
 
 Each amplicon's consensus then flows through the same Stage 3 (plannotate, linear) + Stages 4–5 (annotation +
-combined report) as Mode A, with one sub-section + one `.gbk` per amplicon. Only `barcode09_example/` is
-committed; the second amplicon used to validate B2-reffree is kept local-only (it exposes unpublished work).
-
-Either way, each amplicon's consensus then flows through the same Stage 3 (plannotate, linear) + Stage 4
-(combined report) as Mode A, with 2–4 per-amplicon sub-sections per barcode. `amplicon_validate.sh` already
-carries a `REF=` hook (off by default; prints a FUTURE warning) so Mode B can be enabled without restructuring.
+combined report) as Mode A, with one sub-section + one `.gbk` per amplicon. No amplicon fixture is committed
+right now (the example is being replaced — see `examples/amplicon/README.md`); the amplicons used to validate
+B2-reffree are local-only. `amplicon_validate.sh` carries a `REF=` hook (off by default; prints a FUTURE
+warning) so the reference path (B1) can be enabled without restructuring.
 
 ---
 
@@ -161,8 +159,9 @@ combined report**; Phase 1 is the working skeleton.
 - Deliverable: `combined-report.html`.
 
 ### Phase 3 — Hardening & docs
-- ✅ Example amplicon test data + reference run committed under `amplicon_test_example/` (§9) — the
-  correctness target (analogous to `reference_run_canu/`); how-to in [`amplicon_testing.md`](amplicon_testing.md) §0/§4.
+- ⏳ Example amplicon test data + reference run: **pending** under `examples/amplicon/` — the previous
+  fixture (the correctness target, analogous to `examples/plasmid/reference_run_canu/`) was removed pending
+  replacement; how-to in [`amplicon_testing.md`](amplicon_testing.md) §0/§4.
 - TODO: CLAUDE.md / README / `decision_log.md` updates, `docs/amplicon_validate.md`.
 
 ### Phase 4 — Mode B (multiplex, reference-guided) — when data exists (directions in §3)
@@ -421,22 +420,19 @@ Critical gotchas:
   `combined-report.html`.
 - Confirming the Nextflow SIF cache filenames (the #1 silent offline-breaker).
 - Any `.devcontainer/build/` change.
-- ✅ Example amplicon data + correctness target committed (`amplicon_test_example/`, §9 above). Still
-  host-only: re-running it end-to-end through `amplicon_validate.sh` to confirm the ~3,249 bp consensus
-  reproduces from the freshly-built image.
+- ⏳ Example amplicon data + correctness target: **pending**. A committed fixture (a single ~3,249 bp
+  amplicon) previously lived under `examples/amplicon/`; it was **removed** pending replacement with a new
+  non-sensitive dataset. When it lands at `examples/amplicon/<name>_example/`, re-run it end-to-end through
+  `amplicon_validate.sh` to confirm the consensus reproduces from the freshly-built image.
 
-**Example data — DONE (2026-06-23).** Real single-amplicon datasets now ship in-repo, each as a
-self-contained dir (`barcodeNN/` reads + its EPI2ME reference run): `amplicon_test_example/barcode09_example/`
-— `barcode09/` (22 `*.fastq.gz`, ~3.5 MB; MinKNOW *sup*, ~3.2 kb product) alongside a committed **reference
-run** at `barcode09_example/wf-amplicon_*/output/` (de-novo EPI2ME wf-amplicon v1.2.2; single consensus
-**3,249 bp** for `barcode09`; params `min_read_length=300 / min_read_qual=15 / reference=null`). A second
-distinct amplicon (the multiplex/Mode B second product) is kept **local-only** — `.gitignore` excludes
-`amplicon_test_example/barcode39_example/` because its insert exposes unpublished research; do not commit it.
-The committed `barcode09_example/` is the amplicon correctness target —
-analogous to `reference_run_canu/` — and is
-allowlisted in `.gitignore` (mirroring the `example_rawdata` / `reference_run_canu` blocks). It is the
-**user's own sequencing data**, so there's no third-party-license question. A downsampled slice of
-wf-amplicon's bundled `test_data/` remains a data-free fallback for forkers who can't ship their own reads.
+**Example data — being replaced (status 2026-06-24).** The amplicon example fixture lives under
+`examples/amplicon/` as a self-contained dir (`barcodeNN/` reads + its EPI2ME reference run, the correctness
+target — the amplicon analogue of `examples/plasmid/reference_run_canu/`). The previous committed fixture (a
+single ~3,249 bp amplicon) was **removed** to be replaced with new, non-sensitive data; see
+`examples/amplicon/README.md`. A second distinct amplicon (the multiplex/Mode B second product) is kept
+**local-only** — `.gitignore` excludes `examples/amplicon/barcode39_example/` because its insert exposes
+unpublished research; do not commit it. The committed allowlist is the single `!examples/**` block in
+`.gitignore`. wf-amplicon's bundled `test_data/` is a data-free fallback for a smoke test.
 How a clean-room tester drives it: [`amplicon_testing.md`](amplicon_testing.md) §0/§4.
 > ✅ **De-identified for release (2026-06-23).** The committed run was scrubbed + trimmed: the lab
 > host/username → generic (`/home/user`, `validation-host`) across the kept

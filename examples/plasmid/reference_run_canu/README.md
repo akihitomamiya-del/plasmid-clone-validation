@@ -1,4 +1,4 @@
-# reference_run_canu — correctness target for the build
+# examples/plasmid/reference_run_canu — correctness target for the build
 
 The output of an **EPI2ME Desktop** run (`epi2melabs/5.3.1`) of `wf-clone-validation` on the example
 data using the **canu** assembler. Use it as the expected result when validating the sandboxed
@@ -6,7 +6,7 @@ container build (`docs/archive/setup_and_plan.md` §7 Phase 4) — a fresh run s
 
 ## Input
 `barcode69.len5kb-6kb_q20.fastq.gz` — the example reads filtered to **5–6 kb, mean Q ≥ 20** (128 reads).
-This is the same set our pipeline produces from `example_rawdata/barcode69/` (the raw ~765-read concat).
+This is the same set our pipeline produces from `examples/plasmid/raw/barcode69/` (the raw ~765-read concat).
 
 ## Exact parameters (from `params.json`)
 | param | value |
@@ -37,7 +37,7 @@ This is the same set our pipeline produces from `example_rawdata/barcode69/` (th
 ```bash
 # raw -> filtered (same 128 reads) -> canu, matching the reference params:
 EXTRA_NF_ARGS="--assembly_tool canu --assm_coverage 60" PROFILE=singularity \
-  ./clone_validate.sh example_rawdata runs/cv_canu 5000 5000 20 6000
+  ./clone_validate.sh examples/plasmid/raw runs/cv_canu 5000 5000 20 6000
 ```
 **Pass criteria:** status `Completed successfully`, one contig of ~5,652 bp (deconcatenation accepts
 `0.8–1.2×approx_size`), and the same core annotations. (flye on the same data is expected to fail —

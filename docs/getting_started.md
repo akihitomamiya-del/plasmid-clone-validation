@@ -105,7 +105,7 @@ If your machine already has the tools, you can skip containers entirely:
 ```bash
 git clone <this repo>            # you already have read access
 cd plasmid-clone-validation
-./clone_validate.sh example_rawdata runs/cv auto
+./clone_validate.sh examples/plasmid/raw runs/cv auto
 ```
 
 `PROFILE` auto-detects (`singularity` if only Apptainer is present, else `standard`). On first run
@@ -116,11 +116,11 @@ Nextflow downloads the 5 workflow images (needs network once); to go fully offli
 
 ## 6. Run the bundled example (prove it works)
 
-This repo **ships a real example** (`example_rawdata/barcode69/`), so you can confirm everything works
+This repo **ships a real example** (`examples/plasmid/raw/barcode69/`), so you can confirm everything works
 before touching your own data. The recommended command lets the data size itself (**AUTO mode**):
 
 ```bash
-./clone_validate.sh example_rawdata runs/cv auto
+./clone_validate.sh examples/plasmid/raw runs/cv auto
 ```
 
 Expected (takes ~2–3 min):
@@ -137,9 +137,9 @@ whole stack works. (AUTO names outputs by sample-sheet *alias*, so the file is `
 
 Want byte-for-byte proof against the reference? Use **matched parameters** and compare md5:
 ```bash
-./clone_validate.sh example_rawdata runs/cv_ref 5000 5000 20 6000
+./clone_validate.sh examples/plasmid/raw runs/cv_ref 5000 5000 20 6000
 md5sum <(grep -v '^>' runs/cv_ref/cloneval/barcode69.final.fasta | tr -d '\n' | tr a-z A-Z) \
-       <(grep -v '^>' reference_run_canu/output/barcode69.final.fasta | tr -d '\n' | tr a-z A-Z)
+       <(grep -v '^>' examples/plasmid/reference_run_canu/output/barcode69.final.fasta | tr -d '\n' | tr a-z A-Z)
 # both → 2b78d8db3aacbc918d3e031d8ee7538c
 ```
 (AUTO and matched-params give the *same length* but slightly different consensus — both valid. The

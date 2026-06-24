@@ -39,17 +39,15 @@ Pass criteria are summarized at the bottom.
     barcode01/   *.fastq.gz      # one amplicon per barcode (Mode A)
     barcode02/   *.fastq.gz
   ```
-  **Example amplicon datasets now ship in this repo**, each as a self-contained dir (`barcodeNN/` reads +
-  its committed EPI2ME reference run), so this whole test runs with **no external data**:
-  `amplicon_test_example/barcode09_example/` — `barcode09/` (22 `*.fastq.gz`, ~3.5 MB; a real single-amplicon
-  MinKNOW *sup* run, ~3.2 kb product) + the reference run `barcode09_example/wf-amplicon_*/output/` (a de-novo
-  EPI2ME wf-amplicon v1.2.2 run; single consensus **3,249 bp**), the correctness target — the amplicon
-  analogue of `reference_run_canu/`. Point the wrapper at the example dir
-  `amplicon_test_example/barcode09_example/`: it picks up
-  `barcode09/` and **warns-and-skips** the sibling `wf-amplicon_*/` run dir (not `barcodeNN`). To test your
-  own data instead, drop `barcodeNN/*.fastq.gz`
-  under any dir — subdir names **must** match `barcodeNN` (≥2 digits). (A data-free smoke test is still
-  possible by fetching wf-amplicon's bundled `test_data/` de-novo demo on the host.)
+  **The amplicon example fixture is currently being replaced.** It lives under `examples/amplicon/` as a
+  self-contained dir (`barcodeNN/` reads + its committed EPI2ME reference run, the correctness target — the
+  amplicon analogue of `examples/plasmid/reference_run_canu/`). The previous fixture (a single ~3,249 bp
+  amplicon) was **removed** pending a new, non-sensitive dataset; see `examples/amplicon/README.md`. Until it
+  lands, supply your own data: drop a `barcodeNN/*.fastq.gz` dir anywhere (subdir names **must** match
+  `barcodeNN`, ≥2 digits) and point the wrapper at its parent; or run a data-free smoke test with
+  wf-amplicon's bundled `test_data/` de-novo demo on the host. When the new fixture lands at
+  `examples/amplicon/<name>_example/`, point the wrapper there — it picks up the `barcodeNN/` reads dir and
+  **warns-and-skips** the sibling `wf-amplicon_*/` run dir (not `barcodeNN`).
 
 The four run-time security args used throughout mirror `.devcontainer/build/devcontainer.json` (the
 validated rootless-Apptainer recipe). Export them once to keep commands short:
@@ -113,14 +111,14 @@ model is genuinely absent → §6 (pin one).
 
 ## 4. End-to-end: de-novo amplicon run, offline
 
-Uses the **shipped example** (§0) — no external data needed. `amplicon_validate.sh` is on `PATH`. Run from
-the repo root so `amplicon_test_example/barcode09_example/` is the mount source; pass `300 15` to match the
-reference run's params (`min_read_length 300`, `min_read_qual 15`, de-novo) for a like-for-like consensus:
+Needs an amplicon example dir (one or more `barcodeNN/*.fastq.gz` under a parent). The shipped fixture is
+currently being replaced (§0) — use `examples/amplicon/<name>_example` once it lands, or your own data dir.
+`amplicon_validate.sh` is on `PATH`. Pass `300 15` (`min_read_length 300`, `min_read_qual 15`, de-novo):
 ```bash
 mkdir -p amp_out && chmod 777 amp_out      # /out must be writable by the container's uid 1000 (vscode);
                                            # the chmod is only needed if your host account isn't uid 1000
 docker run --rm "${RUNARGS[@]}" \
-  -v "$PWD/amplicon_test_example/barcode09_example":/data:ro \
+  -v "$PWD/examples/amplicon/<name>_example":/data:ro \   # <-- your amplicon example dir
   -v "$PWD/amp_out":/out \
   "$IMG" \
   amplicon_validate.sh /data /out none 300 15
@@ -135,28 +133,27 @@ docker run --rm "${RUNARGS[@]}" \
 **Expect:** the banner `== amplicon_validate == … mode=de-novo … profile=singularity`, then
 `Prepared 1 sample(s)` — the bundled `wf-amplicon_*/` reference-run dir is **silently skipped** (it has no
 top-level `*.fastq.gz`; the `not in barcodeNN format` WARNING fires only for a non-`barcodeNN` dir that
-*does* contain reads). Nextflow then runs barcode09 through filter → draft (miniasm/spoa) → medaka polish, and
+*does* contain reads). Nextflow then runs each barcode through filter → draft (miniasm/spoa) → medaka polish, and
 finishes with its normal completion summary. Outputs:
 - `/out/amplicon/wf-amplicon-report.html` — read/consensus QC report
 - `/out/amplicon/all-consensus-seqs.fasta` (+ `.fai`) — all per-amplicon consensuses
 - `/out/amplicon/<alias>/consensus/consensus.fastq` — per-sample consensus
 
-**Correctness target:** barcode09 yields a **single ~3,249 bp consensus**. Diff against the committed
-reference run — its `.fai` reads `barcode09  3249`:
+**Correctness target:** each barcode yields a **single consensus ~the length of its amplicon**. When the
+shipped fixture is restored (it ships its own `wf-amplicon_*/output/` reference run), diff against its `.fai`:
 ```bash
-seqkit stats amp_out/amplicon/all-consensus-seqs.fasta            # produced now
-cat amplicon_test_example/barcode09_example/wf-amplicon_*/output/all-consensus-seqs.fasta.fai  # target (barcode09 3249)
+seqkit stats amp_out/amplicon/all-consensus-seqs.fasta                                  # produced now
+cat examples/amplicon/<name>_example/wf-amplicon_*/output/all-consensus-seqs.fasta.fai  # the target length(s)
 ```
-The **length** should match (single ~3.2 kb contig). The exact bases may differ by a few if your basecaller
-model/params differ from the reference (300/Q15, de-novo) — expected, like the plasmid AUTO-vs-matched-params
-caveat.
+The **length** should match. The exact bases may differ by a few if your basecaller model/params differ from
+the reference (300/Q15, de-novo) — expected, like the plasmid AUTO-vs-matched-params caveat.
 
 **Prove it's airgapped (the definitive offline test):** rerun with the network removed — if the medaka
 model is bundled, it still completes; if it tries to download a model, this is where it fails (→ §6).
 ```bash
 mkdir -p amp_out_offline && chmod 777 amp_out_offline     # writable by uid 1000 (see the §4 note above)
 docker run --rm --network none "${RUNARGS[@]}" \
-  -v "$PWD/amplicon_test_example":/data:ro -v "$PWD/amp_out_offline":/out \
+  -v "$PWD/examples/amplicon/<name>_example":/data:ro -v "$PWD/amp_out_offline":/out \
   "$IMG" amplicon_validate.sh /data /out none 300 15
 ```
 **Pass:** a consensus FASTA is produced for each barcode that had enough reads, the report renders, and
@@ -204,7 +201,7 @@ amplicon image test — <date>, host <name>
   §3a rootless apptainer:   <"rootless apptainer OK"? y/n>
   §3b medaka sup model:     <model string(s) listed, e.g. dna_r10.4.1_e8.2_400bps_sup@v5.0.0 ; or "none">
   §4 de-novo run:           <completed? y/n>   barcodes in / consensus out: <n/n>
-       consensus lengths:   <bp per barcode>   (shipped example: barcode09 ≈ 3,249 bp)
+       consensus lengths:   <bp per barcode>   (each ≈ its amplicon length)
   §4 offline (--network none): <completed? y/n>   (proves medaka model bundled)
   §5 guards:                override injected <y/n> · REF warns <y/n> · --reference rejected <y/n>
   notes / errors:           <…>
@@ -220,7 +217,7 @@ amplicon image test — <date>, host <name>
 | Baked (§2) | `ontresearch-wf-amplicon-sha0ba6…img` present; `wf-amplicon` + `wf-clone-validation` in assets |
 | Rootless Apptainer (§3a) | `apptainer exec …wf-amplicon….img` prints `rootless apptainer OK` as `vscode` |
 | Medaka model (§3b) | an `r10.4.1 … sup` model is listed (matching your basecaller) |
-| De-novo run (§4) | run completes; per-barcode consensus in `all-consensus-seqs.fasta`; QC report renders (shipped example: barcode09 → ~3,249 bp) |
+| De-novo run (§4) | run completes; per-barcode consensus in `all-consensus-seqs.fasta`; QC report renders (each consensus ≈ its amplicon length) |
 | Offline (§4) | the `--network none` rerun completes (no model download) |
 | Guards (§5) | `OVERRIDE_BASECALLER_CFG` injected; `REF=` warns; smuggled `--reference` rejected |
 

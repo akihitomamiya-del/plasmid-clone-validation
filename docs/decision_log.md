@@ -89,5 +89,5 @@ add `--security-opt systempaths=unconfined` to the devcontainer runArgs (contain
 **Validated end-to-end** 2026-06-19 on `validation-host` (native Docker 29, kernel 6.17.0-35,
 `sysctl=1`): the full **offline** canu pipeline (`PROFILE=singularity clone_validate.sh … --assembly_tool
 canu`, `--network none`) runs as non-root `vscode` under the profile and reproduces the reference
-exactly — **1 contig, 5,652 bp, "Completed successfully"** (matches `reference_run_canu/`). Profile +
+exactly — **1 contig, 5,652 bp, "Completed successfully"** (matches `examples/plasmid/reference_run_canu/`). Profile +
 `apparmor=pcv-apptainer` introduced in commit `0f3ea77`; `systempaths=unconfined` in the follow-up.

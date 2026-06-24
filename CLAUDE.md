@@ -25,8 +25,9 @@ BLAST annotation** of that consensus + an offline HTML report — `amplicon_vali
   validated flye-`SIGFPE` mechanism, the data-driven peak finder (`estimate_length_peak.sh`), inside-vs-outside.
 - **Amplicon pipeline:** `docs/amplicon_plan.md` (design/roadmap), `docs/amplicon_annotate.md` (the
   pLannotate BLAST annotation + HTML report), `docs/amplicon_testing.md` (host build/test). Code:
-  `amplicon_validate.sh` + `amplicon_annotate/`; example + correctness target: `amplicon_test_example/`.
-- `reference_run_canu/` — EPI2ME **canu** reference output = the build's correctness target
+  `amplicon_validate.sh` + `amplicon_annotate/`; example fixture: `examples/amplicon/` (no committed fixture
+  currently — being replaced; see `examples/amplicon/README.md`).
+- `examples/plasmid/reference_run_canu/` — EPI2ME **canu** reference output = the build's correctness target
   (expected: **1 contig, 5,652 bp, "Completed successfully"**; that run used `approx_size=5000`).
 - `README.md` — quickstart + **"Before you build"** host prerequisites/secrets + the **PI amplicon
   walkthrough** (run the example → your data → open the report).
@@ -102,8 +103,8 @@ don't make them recall a flag:
   clustering by `minimap2 -x ava-ont` overlap (union-find) → one wf-amplicon sample (`barcodeNN_cK`) per
   amplicon → each assembled + annotated in the one combined report. **Distinct-locus only** (amplicons sharing
   a region longer than `SPLIT_MIN_OVERLAP` merge → use `REF=`). `none` filter mode only. Validated locally on
-  barcode09(3.2kb) + a second distinct 1.6kb amplicon mixed → both recovered @100%. See `docs/amplicon_plan.md`
-  §3 (B2-reffree). (That second amplicon is kept local-only — `.gitignore` excludes `barcode39_example/`.)
+  two distinct amplicons (3.2kb + 1.6kb) mixed → both recovered @100%. See `docs/amplicon_plan.md`
+  §3 (B2-reffree). (Those amplicons are kept local-only — `.gitignore` excludes `examples/amplicon/barcode39_example/`.)
 - **SIF cache filenames** Nextflow expects must be confirmed by one online run (`docs/sif_cache.md`) —
   the #1 thing that silently breaks offline.
 - **Assembler is THE critical lever (validated 2026-06-21):** `clone_validate.sh` now **defaults to
@@ -138,10 +139,10 @@ don't make them recall a flag:
 
 ## Conventions & guardrails
 - Shell scripts use `set -euo pipefail`, live at the repo root, and are reusable/parameterized.
-- Runnable example: `example_rawdata/barcode69/` (raw concat). Length/quality thresholds are inclusive (`≥`).
-- **Never commit real sequencing data** — `.gitignore` blocks `*.fastq.gz` etc.; only `example_rawdata/**`
+- Runnable example: `examples/plasmid/raw/barcode69/` (raw concat). Length/quality thresholds are inclusive (`≥`).
+- **Never commit real sequencing data** — `.gitignore` blocks `*.fastq.gz` etc.; only `examples/plasmid/raw/**`
   is allowlisted. Pipeline outputs (`runs/`, `cloneval/`, `nf_input/`, `work/`, `*.sif`) are ignored.
 - `PROFILE` auto-detects: `singularity` when only Apptainer is present (the devcontainer), else `standard`.
-- Verify changes: `bash -n` the scripts; the filter on `example_rawdata` yields **128 reads** (5–6 kb, Q≥20).
+- Verify changes: `bash -n` the scripts; the filter on `examples/plasmid/raw` yields **128 reads** (5–6 kb, Q≥20).
 - Changes under `.devcontainer/build/` or `.devcontainer/claude-code/` can't be validated inside the firewalled
   sandbox — say so and defer to a host build (or a GHCR pull for the runtime).

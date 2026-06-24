@@ -38,12 +38,12 @@
 #
 # Examples:
 #   # AUTO (recommended): data-driven per-sample sizing + canu
-#   ./clone_validate.sh example_rawdata runs/cv_auto auto
-#   ./clone_validate.sh example_rawdata runs/cv_auto auto "" 20      # set min Q (arg 5)
+#   ./clone_validate.sh examples/plasmid/raw runs/cv_auto auto
+#   ./clone_validate.sh examples/plasmid/raw runs/cv_auto auto "" 20      # set min Q (arg 5)
 #   # MANUAL window (canu is still the default assembler)
-#   ./clone_validate.sh example_rawdata runs/cv 5500 5000 20 6000
+#   ./clone_validate.sh examples/plasmid/raw runs/cv 5500 5000 20 6000
 #   # force flye instead of the canu default
-#   EXTRA_NF_ARGS="--assembly_tool flye" ./clone_validate.sh example_rawdata runs/cv 5500 5000 20 6000
+#   EXTRA_NF_ARGS="--assembly_tool flye" ./clone_validate.sh examples/plasmid/raw runs/cv 5500 5000 20 6000
 
 set -euo pipefail
 usage() { awk 'NR==1{next} /^#/{sub(/^# ?/,"");print;next} {exit}' "$0"; }

@@ -109,8 +109,9 @@ built; this section supersedes that note.)
 
 ## Offline / correctness
 
-Validated on a host against the committed example (`amplicon_test_example/barcode09_example/`, barcode09, 3,249 bp): the run
-finds 5 elements — `IS1` (transposon), `attB2` (Gateway site), `insB1` (CDS) + 2 weak Swiss-Prot hits —
+Validated on a host against a committed amplicon example (a single ~3,249 bp amplicon; that fixture is
+currently being replaced — see [`examples/amplicon/README.md`](../examples/amplicon/README.md)): the run
+found 5 elements — `IS1` (transposon), `attB2` (Gateway site), `insB1` (CDS) + 2 weak Swiss-Prot hits —
 the GenBank is `linear`, and the **combined report** (`amplicon-report-with-annotation.html`) renders the
 wf-amplicon QC plots plus the annotation's two maps + table in one self-contained file. No network access
 is used; all BLAST databases ship in the SIF.

@@ -19,8 +19,8 @@
 #
 # CAVEAT: reliable only for DISTINCT-locus amplicons -- reads from different products must not
 #   overlap. Amplicons sharing an identical stretch longer than MIN_OVERLAP will merge into one
-#   cluster (use reference mode, REF=, for those). Validated: barcode09 (3.2 kb) + barcode39
-#   (1.6 kb) mixed -> 2 clean clusters, 0 cross-amplicon overlaps, both recovered at 100% identity.
+#   cluster (use reference mode, REF=, for those). Validated (locally) on two distinct amplicons
+#   (3.2 kb + 1.6 kb) mixed in one barcode -> 2 clean clusters, 0 cross-amplicon overlaps, both recovered.
 #
 # Usage:
 #   ./amplicon_split.sh <reads.fastq[.gz]> <out_dir> [min_reads] [min_overlap] [min_len]

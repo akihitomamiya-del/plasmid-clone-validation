@@ -1,6 +1,6 @@
 # Read filtering & assembler choice — experimental findings (2026-06-21)
 
-A controlled experiment on `example_rawdata/barcode69` (~5,652 bp plasmid, RBK library) to answer:
+A controlled experiment on `examples/plasmid/raw/barcode69` (~5,652 bp plasmid, RBK library) to answer:
 **which lever actually decides whether the plasmid assembles — read length-selection, quality
 filtering, or the assembler (canu vs flye)?** Plus the data-driven peak finder
 (`estimate_length_peak.sh`), the canu-vs-flye mechanism, and an inside-vs-outside-the-container check.
@@ -149,7 +149,7 @@ container images + reads + params). So choose by ergonomics, not correctness:
 per sample (peak → window + per-sample `approx_size` via a generated sample sheet):
 
 ```bash
-./clone_validate.sh example_rawdata runs/cv auto      # per-sample peak sizing + canu (the default)
+./clone_validate.sh examples/plasmid/raw runs/cv auto      # per-sample peak sizing + canu (the default)
 ```
 Equivalent manual form (one sample): `estimate_length_peak.sh <reads> --report-only` → feed
 `PEAK LO HI` as `approx_size min_len … max_len`. Critical: the **assembler (canu)**. Helpful: the

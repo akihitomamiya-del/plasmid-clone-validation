@@ -87,7 +87,7 @@ products share a long identical stretch, give a reference instead (`REF=amplicon
 | `docs/assembly_testing.md` | **canu vs flye**: how to select the assembler, params to sweep, why flye fails here, and a ready test matrix. |
 | `docs/assembly_findings_2026-06-21.md` | **Which lever decides the assembly** (length-selection vs quality vs assembler) — the controlled factorial, the validated canu-vs-flye mechanism (flye's SIGFPE), the data-driven peak finder, and an inside-vs-outside check. |
 | `.devcontainer/` | **Two-artifact container layout** (see `.devcontainer/README.md`): `build/` = publishable lean runtime image → GHCR; `claude-code/` = the firewalled Claude yolo-mode sandbox `FROM` it; top-level `devcontainer.json` = default pipeline use. |
-| `example_rawdata/` | A runnable example: `barcode69/` (raw ~765-read concat) + a reference filtered output. |
+| `examples/plasmid/raw/` | A runnable example: `barcode69/` (raw ~765-read concat) + a reference filtered output. |
 
 ## Getting started
 
@@ -102,9 +102,9 @@ docker pull ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest
 Or **run the scripts directly** on any host with Nextflow + `seqkit` + Docker/Apptainer (3 commands):
 ```bash
 # 1. data-driven read filtering (no hand-picked thresholds) on the shipped example
-./estimate_length_peak.sh example_rawdata/barcode69/barcode69.concat.fastq.gz --report-only
+./estimate_length_peak.sh examples/plasmid/raw/barcode69/barcode69.concat.fastq.gz --report-only
 # 2. filter + assemble — AUTO sizes each sample from its own read-length peak (canu)
-./clone_validate.sh example_rawdata runs/cv auto
+./clone_validate.sh examples/plasmid/raw runs/cv auto
 # 3. read the result
 cat runs/cv/cloneval/sample_status.txt        # -> Completed successfully / 1 contig / 5652 bp
 ```
@@ -151,7 +151,7 @@ repository**, so giving someone repo access does *not* let them pull the image. 
 
 - **Make the package public** (lowest friction) — they `docker pull` with no login. The repo can stay
   private, and the image bakes **no sequencing data** (only public tools, ONT's public workflow SIFs,
-  and these wrapper scripts), so this does *not* expose `example_rawdata/`. Flip it in the web UI:
+  and these wrapper scripts), so this does *not* expose `examples/plasmid/raw/`. Flip it in the web UI:
   *your profile → Packages → `plasmid-clone-validation` → Package settings → Danger Zone → Change
   visibility → Public* (UI only — there is no REST/CLI to change package visibility).
 - **Keep it private, grant access** — *Package settings → Manage access → Invite* the collaborator
@@ -166,25 +166,25 @@ Whether the **repo and the example reads** become public is a *separate* decisio
 
 ```bash
 # 1. Filter only (works anywhere seqkit is installed). Runs on the shipped example:
-./filter_nanopore_reads.sh example_rawdata filtered 5000 20 6000
-#   -> ~128 reads, matching example_rawdata/barcode69.len5kb-6kb_q20.fastq.gz
+./filter_nanopore_reads.sh examples/plasmid/raw filtered 5000 20 6000
+#   -> ~128 reads, matching examples/plasmid/raw/barcode69.len5kb-6kb_q20.fastq.gz
 
 # 2. Select reads + run clone-validation (needs Nextflow + Docker/Apptainer). Defaults to canu.
 ./clone_validate.sh <raw_dir> <out_dir> <approx_size|auto> [min_len] [min_qual] [max_len]
 #   PROFILE: 'standard' (Docker host) | 'singularity' (Apptainer; use this in the devcontainer)
-PROFILE=standard ./clone_validate.sh example_rawdata runs/cv 5500 5000 20 6000
+PROFILE=standard ./clone_validate.sh examples/plasmid/raw runs/cv 5500 5000 20 6000
 
 # 2b. AUTO (recommended) — data-driven per-sample sizing (peak → window + approx_size), canu:
-PROFILE=standard ./clone_validate.sh example_rawdata runs/cv_auto auto
+PROFILE=standard ./clone_validate.sh examples/plasmid/raw runs/cv_auto auto
 
 # 3. canu is the default assembler; to force flye instead, override via EXTRA_NF_ARGS
 #    (expect it to fail on RBK full-length reads — see docs/assembly_findings_2026-06-21.md):
 EXTRA_NF_ARGS="--assembly_tool flye" PROFILE=standard \
-  ./clone_validate.sh example_rawdata runs/cv_flye 5500 5000 20 6000
+  ./clone_validate.sh examples/plasmid/raw runs/cv_flye 5500 5000 20 6000
 ```
 
 `<raw_dir>` holds one `barcodeNN/` subdirectory per sample, each with `*.fastq.gz`
-(see `example_rawdata/barcode69/`).
+(see `examples/plasmid/raw/barcode69/`).
 
 **`approx_size` matters:** the workflow re-filters by length around `approx_size`
 (0.5–1.5× at fastcat, ≤1.2× at the assembler). Pick it so
@@ -197,12 +197,12 @@ runs `estimate_length_peak.sh` on **each barcode**, filters that sample to its o
 — no hand-picked numbers, and per-sample sizing for mixed runs. **canu is the default assembler.**
 
 ```bash
-./clone_validate.sh example_rawdata runs/cv_auto auto          # data-driven per-sample sizing + canu
-./clone_validate.sh example_rawdata runs/cv_auto auto "" 25    # arg 5 still sets min Q (default 20)
+./clone_validate.sh examples/plasmid/raw runs/cv_auto auto          # data-driven per-sample sizing + canu
+./clone_validate.sh examples/plasmid/raw runs/cv_auto auto "" 25    # arg 5 still sets min Q (default 20)
 ```
 On `barcode69` AUTO finds peak≈5623, window 5061–6185 (→ 128 reads). Outputs are named by the sample
 sheet **alias** (`sampleNN`). To inspect the peak call standalone:
-`./estimate_length_peak.sh example_rawdata/barcode69/barcode69.concat.fastq.gz --report-only`.
+`./estimate_length_peak.sh examples/plasmid/raw/barcode69/barcode69.concat.fastq.gz --report-only`.
 
 ## Pipeline
 
@@ -210,7 +210,7 @@ Steps 1–2 are **ours** (`clone_validate.sh`); step 3 is EPI2ME `wf-clone-valid
 filtered input.
 
 ```
-raw per-barcode FASTQs  (example_rawdata/barcodeNN/*.fastq.gz)
+raw per-barcode FASTQs  (examples/plasmid/raw/barcodeNN/*.fastq.gz)
    │
    │  1. OUR pre-filter — select full-length, high-Q reads BEFORE assembly
    ├─ MANUAL  filter_nanopore_reads.sh : fixed window [min_len,max_len] + mean Q ≥ min_qual (seqkit)
@@ -248,9 +248,9 @@ vs outside is an ergonomics/sandboxing choice, not a correctness one (`docs/asse
 
 ```bash
 # data-driven window, then filter + assemble with canu on the host (Docker)
-read _ PEAK LO HI < <(./estimate_length_peak.sh example_rawdata/barcode69/barcode69.concat.fastq.gz --report-only | tail -1)
+read _ PEAK LO HI < <(./estimate_length_peak.sh examples/plasmid/raw/barcode69/barcode69.concat.fastq.gz --report-only | tail -1)
 EXTRA_NF_ARGS="--assembly_tool canu --assm_coverage 60" PROFILE=standard \
-  ./clone_validate.sh example_rawdata runs/cv_canu "$PEAK" "$LO" 20 "$HI"
+  ./clone_validate.sh examples/plasmid/raw runs/cv_canu "$PEAK" "$LO" 20 "$HI"
 ```
 `PROFILE` auto-detects `standard` on a Docker-only host; set it explicitly to be sure. Each workflow
 step runs as a Docker container; outputs land in `runs/cv_canu/cloneval/` (`sample_status.txt`,
@@ -274,9 +274,9 @@ estimate_length_peak.sh    # AUTO engine: yield-weighted histogram → full-leng
 .github/workflows/docker-publish.yml   # CI: build + publish the runtime to GHCR on `git tag v*`
 docs/                      # getting_started · sif_cache · host_userns_prereq · decision_log · assembly_testing ·
                            #   assembly_findings_2026-06-21 · verify_devcontainer · archive/
-example_rawdata/barcode69/ # runnable example (raw concat) + its pre-filtered output
-reference_run_canu/        # EPI2ME canu reference output = correctness target (1 contig, 5,652 bp)
-# gitignored: runs/ cloneval/ nf_input/ work/ *.sif *.fastq.gz   (only example_rawdata/** is allowlisted)
+examples/plasmid/raw/barcode69/ # runnable example (raw concat) + its pre-filtered output
+examples/plasmid/reference_run_canu/        # EPI2ME canu reference output = correctness target (1 contig, 5,652 bp)
+# gitignored: runs/ cloneval/ nf_input/ work/ *.sif *.fastq.gz   (only examples/plasmid/raw/** is allowlisted)
 ```
 
 ## Tool provenance

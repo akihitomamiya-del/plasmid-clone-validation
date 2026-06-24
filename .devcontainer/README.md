@@ -55,7 +55,7 @@ Claude bump rebuilds only the thin `claude-code` layer (~230 MB) — the runtime
 # inside the sandbox, smoke test:
 nextflow info && apptainer --version && seqkit version && claude --version
 ls /opt/sif-cache                                            # 6 ontresearch-*.img (5 clone-val + wf-amplicon)
-./clone_validate.sh example_rawdata runs/cv auto            # Completed successfully / 5652
+./clone_validate.sh examples/plasmid/raw runs/cv auto            # Completed successfully / 5652
 ```
 
 ## Pulling the Claude-Code sandbox (no local build)
