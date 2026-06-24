@@ -9,7 +9,7 @@
 #                all-consensus-seqs.fasta.
 #
 # Usage:
-#   annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt]
+#   annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt] [wf_amplicon_report.html]
 #
 # Stage 3: split the multi-record FASTA -> one <record>.final.fasta per record,
 #          then run run_plannotate.py --linear (our patched copy) in the
@@ -17,14 +17,18 @@
 #          fpbase/Rfam) -> per-record bed/gbk/feature_table + plannotate_report.json.
 # Stage 4: combined_report.py in the wf-clone-validation SIF -> one HTML with a
 #          per-sample linear feature map + annotation table.
+# Stage 5: (optional, only if the wf-amplicon report is passed as arg 5) splice the
+#          annotation section into THAT report -> one combined report = the usual
+#          wf-amplicon report with the annotation added. Pure-stdlib merge_report.py
+#          (host python3, or the wf-clone-validation SIF as a fallback).
 #
 # All BLAST databases are baked in the SIF -- no network access is used.
 #
 set -euo pipefail
 
-CONSENSUS="${1:?usage: annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt]}"
-OUT="${2:?usage: annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt]}"
-PARAMS_IN="${3:-}"; VERSIONS_IN="${4:-}"
+CONSENSUS="${1:?usage: annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt] [wf_amplicon_report.html]}"
+OUT="${2:?usage: annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt] [wf_amplicon_report.html]}"
+PARAMS_IN="${3:-}"; VERSIONS_IN="${4:-}"; BASE_REPORT="${5:-}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -f "$CONSENSUS" ]] || { echo "ERROR: consensus FASTA not found: $CONSENSUS" >&2; exit 1; }
@@ -92,8 +96,37 @@ apptainer exec --containall --no-home --pwd "$WORK/out" \
 
 [[ -f "$REPORT" ]] || { echo "ERROR: Stage 4 produced no report" >&2; exit 1; }
 rm -rf "$WORK"
+
+# --- 4) Stage 5 (optional): splice the annotation into the wf-amplicon report ---
+#     Produces ONE combined report. merge_report.py is pure stdlib, so prefer the
+#     host python3; fall back to python3 in the wf-clone-validation SIF if absent.
+MERGED=""
+if [[ -n "$BASE_REPORT" ]]; then
+    if [[ -f "$BASE_REPORT" ]]; then
+        echo
+        echo "Stage 5: merging the annotation into the wf-amplicon report..."
+        MERGED="$OUT/amplicon-report-with-annotation.html"
+        if command -v python3 >/dev/null 2>&1; then
+            python3 "$HERE/merge_report.py" \
+                --base "$BASE_REPORT" --annotation "$REPORT" --output "$MERGED"
+        else
+            BASE_DIR="$(cd "$(dirname "$BASE_REPORT")" && pwd)"; BASE_BN="$(basename "$BASE_REPORT")"
+            apptainer exec --containall --no-home --pwd "$OUT" \
+              --bind "$OUT" --bind "$BASE_DIR":/base:ro --bind "$HERE":/scripts:ro \
+              "$CV_SIF" python /scripts/merge_report.py \
+                --base "/base/$BASE_BN" --annotation "$REPORT" --output "$MERGED"
+        fi
+        [[ -f "$MERGED" ]] || { echo "WARNING: Stage 5 produced no combined report (standalone annotation report is intact)." >&2; MERGED=""; }
+    else
+        echo "WARNING: wf-amplicon report not found ($BASE_REPORT) -- skipping the combined report." >&2
+    fi
+fi
+
 echo
 echo "== annotation outputs =="
-echo "  report          : $REPORT"
+if [[ -n "$MERGED" ]]; then
+    echo "  combined report : $MERGED   <- wf-amplicon report + annotation"
+fi
+echo "  annotation report: $REPORT"
 echo "  feature table   : $OUT/feature_table.txt"
 echo "  per-record files: $OUT/<sample>.annotations.{bed,gbk}, plannotate_report.json"

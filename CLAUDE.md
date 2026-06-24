@@ -33,8 +33,10 @@ BLAST annotation** of that consensus + an offline HTML report — `amplicon_vali
 ## Locked decisions (don't re-litigate)
 - Integration = **pre-filter wrapper** (`clone_validate.sh`), NOT a fork of the workflow.
 - **Amplicon = a second wrapper** (`amplicon_validate.sh`) over `wf-amplicon` **de-novo** (never `--reference`)
-  + a **pLannotate `--linear` annotation** post-step (`amplicon_annotate/`) that BLASTs the consensus and
-  renders an offline HTML report. NOT a fork; the `--linear` patch to `run_plannotate.py` is vendored.
+  + a **pLannotate `--linear` annotation** post-step (`amplicon_annotate/`) that BLASTs the consensus, renders
+  an offline HTML report, and **splices that annotation into the wf-amplicon report → one combined
+  `amplicon-report-with-annotation.html`** (`merge_report.py`, a post-hoc HTML splice — NOT a re-render).
+  NOT a fork; the `--linear` patch to `run_plannotate.py` is vendored.
 - Runtime = **Apptainer/Singularity**, NOT Docker-in-Docker (Apptainer shares the host netns, so the
   egress firewall governs the workflow for free).
 - The devcontainer is a **multi-artifact split** under `.devcontainer/` (built + validated):
@@ -66,8 +68,14 @@ BLAST annotation** of that consensus + an offline HTML report — `amplicon_vali
   must be writable by the container **uid 1000** (`chmod 777` it if your host UID differs).
 - **Amplicon annotation is offline + Apptainer-only:** `amplicon_annotate/annotate.sh` runs `run_plannotate.py
   --linear` (plannotate SIF) then `combined_report.py` (wf-clone-validation SIF) via `apptainer exec` — all
-  BLAST DBs are baked. pLannotate's own map is **circular**; we add a **linear track** for amplicons. The step
-  is skipped on a Docker-only host (no Apptainer).
+  BLAST DBs are baked. The report has a **linear feature track** (`linear_feature_map()`) plus pLannotate's
+  native circular map. The Apptainer stages are skipped on a Docker-only host (no Apptainer).
+- **Combined report (Stage 5):** when the wf-amplicon report is passed as `annotate.sh` arg 5
+  (`amplicon_validate.sh` does this automatically), `merge_report.py` splices the annotation section into it
+  → one self-contained `amplicon-report-with-annotation.html` = wf-amplicon QC + annotation. It is **pure
+  stdlib** (host `python3`, SIF `python` fallback — NOT Apptainer-only) and safe because both reports embed
+  byte-identical ezcharts/bokeh bundles (reuse the base runtime; UUID ids ⇒ no collisions). Don't add JS
+  libraries to the splice or re-carry the DataTable init (it's inline in the section). See `docs/amplicon_annotate.md`.
 - **SIF cache filenames** Nextflow expects must be confirmed by one online run (`docs/sif_cache.md`) —
   the #1 thing that silently breaks offline.
 - **Assembler is THE critical lever (validated 2026-06-21):** `clone_validate.sh` now **defaults to

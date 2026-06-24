@@ -1,8 +1,11 @@
 # De-novo amplicon + annotation + visualization — implementation plan
 
 **Status:** Phase 0–2 **BUILT + host-validated** (2026-06-24) — de-novo consensus + pLannotate `--linear` BLAST
-annotation + combined HTML report all run offline; see [`amplicon_annotate.md`](amplicon_annotate.md). Phase 4+
-(Mode B / reference) deferred. **Created:** 2026-06-23. **Target workflow:** EPI2ME `wf-amplicon` **v1.2.2**.
+annotation + combined HTML report all run offline; see [`amplicon_annotate.md`](amplicon_annotate.md). The
+combined report (Stage 5) is delivered by **splicing** the annotation into the finished wf-amplicon report
+(`merge_report.py`), **not** by the re-render in §8d below — see `decision_log.md` (2026-06-24); §8d is kept
+as the rejected alternative. Phase 4+ (Mode B / reference) deferred. **Created:** 2026-06-23.
+**Target workflow:** EPI2ME `wf-amplicon` **v1.2.2**.
 
 A living roadmap for adding a second pipeline to this repo: take Oxford Nanopore **amplicon** reads,
 build a **de-novo consensus** (no reference), **annotate** it with plannotate-style BLAST feature
@@ -138,7 +141,7 @@ combined report**; Phase 1 is the working skeleton.
 ### Phase 1 — MVP wrapper + consensus + annotation (working skeleton)
 - ✅ `amplicon_validate.sh` (§8e) written: pre-filter(optional)+reshape → `nextflow run wf-amplicon` de-novo → locate `all-consensus-seqs.fasta` (Stages 1–2; runs on a host with the baked image).
 - TODO: patch `run_plannotate.py` to add `--linear` (§8c), run Stage 3 → annotation + a **standalone** linear map HTML per sample (bokeh `save(..., INLINE)`).
-- Deliverable at end of Phase 1: wf-amplicon's own QC report **+** a separate plannotate map/table (the "separate, linked" shape — an engineering milestone, not the final ask).
+- Deliverable at end of Phase 1: wf-amplicon's own QC report **+** a separate plannotate map/table (the "separate, linked" shape — an engineering milestone, not the final ask). **Now superseded:** Stage 5 (`merge_report.py`) folds the annotation back into the wf-amplicon report → one combined report (the final ask).
 
 ### Phase 2 — Combined HTML report (the PI's deliverable)
 - Write `combined_report.py` (§8d): merge wf-amplicon QC sections + the plannotate **linear** section into one `LabsReport`, run in the wf-clone-validation SIF.
@@ -271,7 +274,15 @@ standalone map add `bokeh.io.save(plot, filename=..., resources=INLINE)` (INLINE
 **Edge cases:** no features found is handled (empty entry, no bed/gbk); outputs are append-mode so always
 run in a fresh `--pwd` dir; very short / non-ACGT / multi-contig need the split + sanitize above.
 
-### 8d. Combined HTML report (Stage 4)
+### 8d. Combined HTML report (Stage 4) — SUPERSEDED by the Stage-5 splice
+
+> **Note (2026-06-24):** What shipped is *not* this re-render. `combined_report.py` builds the
+> **annotation-only** report (Stage 4); the combined "QC + annotation" report is produced by **splicing**
+> the annotation section into the finished `wf-amplicon-report.html` (`merge_report.py`, Stage 5). The
+> splice is robust precisely *because* both reports share the identical ezcharts build (byte-identical JS
+> bundles), which this section already noticed — but it reuses wf-amplicon's own rendered QC instead of
+> re-deriving it, sidestepping R1/R2 below. See `decision_log.md` (2026-06-24). The text below is retained
+> as the rejected design.
 
 **Approach: compose ezcharts — reuse both workflows' `report.py` code**, run in the
 **wf-clone-validation SIF**. Both reports already share the identical `labs.LabsReport` skeleton + the

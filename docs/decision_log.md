@@ -6,6 +6,36 @@ topic doc in `docs/`.
 
 ---
 
+## 2026-06-24 — Combined amplicon report: post-hoc HTML splice, not a re-render
+
+**Decision.** The single "wf-amplicon QC + annotation" report (the PI's deliverable) is produced by
+**splicing** the annotation section into the *finished* `wf-amplicon-report.html`
+(`amplicon_annotate/merge_report.py`, run as Stage 5 of `annotate.sh`), **not** by re-composing
+wf-amplicon's QC sections from data inside our `combined_report.py`. The splice carries only the annotation
+section markup + its one Bokeh embed script and reuses the base report's JS runtime; output is
+`amplicon-report-with-annotation.html`.
+
+**Why.** Both reports are `LabsReport`s built by the **same ezcharts version** (wf-amplicon SIF and
+wf-clone-validation SIF), so they embed **byte-identical** bokeh/echarts/datatables/bootstrap bundles, and
+all element ids are UUIDs. That makes a splice robust (no library version clash, no id collisions, no
+duplicated megabytes) and **sidesteps the entire `combined_report.py` re-render risk register** in
+`amplicon_plan.md` §8d (R1 ezcharts 0.12.0-vs-0.15.2 behavioural drift, R2 harvesting wf-amplicon's internal
+QC files like `qc-summary.tsv`). The merge is pure stdlib → runs on host `python3` (SIF `python` fallback),
+so it isn't gated on Apptainer.
+
+**Options considered and rejected.**
+
+| Option | Why rejected |
+|---|---|
+| Re-render QC+annotation in one `combined_report.py` (the original §8d plan) | Would re-derive wf-amplicon's QC sections in the wrong ezcharts version and require harvesting its internal QC files — exactly R1/R2. The splice reuses wf-amplicon's own already-rendered, already-correct QC. |
+| Fork wf-amplicon's `makeReport` to add our section | A fork (drift/maintenance); also can't run — annotation needs the consensus, which only exists *after* wf-amplicon finishes. |
+| `<iframe>`/data-URI embed of the whole wf-amplicon report | Bulletproof but ~2× size and a non-unified nav (report-in-a-frame); worse UX than genuinely merged sections. |
+
+**Consequence.** `combined_report.py` is now (slightly misleadingly) named — it builds the **annotation-only**
+report; the true combine is `merge_report.py`. Kept the name to avoid churn. The splice depends on ezcharts
+HTML structure staying stable across a wf-amplicon bump (anchors: `main-content`/`meta-content`, `Section_*`
+ids, `Bokeh.safely`); a bump should re-verify the merged report renders.
+
 ## 2026-06-19 — Rootless Apptainer on a userns-hardened host: scoped AppArmor profile, not the global sysctl
 
 **Decision.** The devcontainer enables rootless Apptainer with a **custom, opt-in AppArmor profile**

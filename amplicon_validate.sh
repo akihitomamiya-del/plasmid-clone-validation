@@ -20,9 +20,10 @@
 #   the bundled models so you can confirm). Set OVERRIDE_BASECALLER_CFG=<model> to pin one as a
 #   fallback (e.g. if headers were stripped or the auto-picked model is not bundled).
 #
-# NOTE: plannotate (linear) annotation + the combined HTML report are NOT wired here yet
-#   (Phase 2/3 in docs/amplicon_plan.md). This wrapper runs wf-amplicon and points at its
-#   consensus/QC outputs.
+# After wf-amplicon, this wrapper runs the annotation post-step (amplicon_annotate/annotate.sh)
+#   when a consensus was produced and Apptainer is present -- Stages 3-5: pLannotate (linear)
+#   annotation, the annotation-only HTML report, and a merge into the wf-amplicon report to produce
+#   ONE COMBINED report (amplicon-report-with-annotation.html). See docs/amplicon_annotate.md.
 #
 # Usage:
 #   ./amplicon_validate.sh <raw_dir> <out_dir> [filter_mode] [min_len] [min_qual] [max_len]
@@ -150,14 +151,20 @@ if command -v nextflow >/dev/null 2>&1; then
     echo "  workflow report : $OUT/amplicon/wf-amplicon-report.html"
     echo "  consensus (all) : $OUT/amplicon/all-consensus-seqs.fasta"
     echo "  per-sample      : $OUT/amplicon/<alias>/consensus/consensus.fastq"
-    # Stage 3-4: pLannotate (linear) BLAST annotation + combined HTML report.
+    # Stage 3-5: pLannotate (linear) BLAST annotation, its HTML report, and a
+    #            COMBINED report = the wf-amplicon report with the annotation spliced in.
     CONS="$OUT/amplicon/all-consensus-seqs.fasta"
     if [[ -s "$CONS" ]] && command -v apptainer >/dev/null 2>&1; then
         echo
         echo "== annotation (pLannotate, linear) =="
         if "$SCRIPT_DIR/amplicon_annotate/annotate.sh" "$CONS" "$OUT/annotation" \
-               "$OUT/amplicon/params.json" "$OUT/amplicon/versions.txt"; then
-            echo "  annotated report : $OUT/annotation/amplicon-annotation-report.html"
+               "$OUT/amplicon/params.json" "$OUT/amplicon/versions.txt" \
+               "$OUT/amplicon/wf-amplicon-report.html"; then
+            COMBINED="$OUT/annotation/amplicon-report-with-annotation.html"
+            if [[ -f "$COMBINED" ]]; then
+                echo "  combined report  : $COMBINED   <- wf-amplicon report + annotation"
+            fi
+            echo "  annotation report: $OUT/annotation/amplicon-annotation-report.html"
         else
             echo "WARNING: annotation step failed; wf-amplicon consensus/QC remain in $OUT/amplicon." >&2
         fi

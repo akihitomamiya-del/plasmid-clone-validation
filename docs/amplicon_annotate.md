@@ -2,10 +2,14 @@
 
 The annotation half of the amplicon pipeline: take the de-novo consensus from `wf-amplicon`
 (see [`amplicon_plan.md`](amplicon_plan.md)), find **known elements** in it by BLAST/DIAMOND/Infernal
-against pLannotate's bundled databases, and render a **single HTML report** with a feature map + an
-annotation table — all **fully offline** (every database is baked into the SIF).
+against pLannotate's bundled databases, render an annotation HTML report, and **splice that annotation
+into the usual `wf-amplicon` report** to produce one combined report — all **fully offline** (every
+database is baked into the SIF).
 
-This is Stages 3–4 of [`amplicon_plan.md`](amplicon_plan.md), now **built**.
+This is Stages 3–5 of [`amplicon_plan.md`](amplicon_plan.md), now **built**: pLannotate `--linear`
+annotation (Stage 3), the annotation HTML report (Stage 4), and the optional merge into the
+`wf-amplicon` report (Stage 5) — the latter is the single QC+annotation report the plan called the
+PI's deliverable.
 
 ## What it produces
 
@@ -13,7 +17,8 @@ For each consensus record (one per barcode in de-novo mode):
 
 | Output | What |
 |---|---|
-| `amplicon-annotation-report.html` | the deliverable — a per-sample **linear feature map** + **annotation table** |
+| `amplicon-report-with-annotation.html` | **the combined report** *(Stage 5; the headline deliverable)* — the usual `wf-amplicon-report.html` with the annotation section spliced in. Produced when the wf-amplicon report is passed to `annotate.sh` (arg 5); `amplicon_validate.sh` does this automatically. |
+| `amplicon-annotation-report.html` | the **annotation-only** report — a per-sample **linear feature map** + **pLannotate map** + **annotation table** |
 | `feature_table.txt` | CSV: feature, database, % identity, match length, description, start/end, strand |
 | `<sample>.annotations.bed` | feature coordinates (BED) |
 | `<sample>.annotations.gbk` | a **linear** GenBank record (topology `linear`, not `circular`) |
@@ -25,31 +30,50 @@ For each consensus record (one per barcode in de-novo mode):
 produced and Apptainer is available):
 
 ```bash
-# full pipeline: filter -> wf-amplicon de-novo -> annotation report
+# full pipeline: filter -> wf-amplicon de-novo -> annotation (linear) + combined HTML report
 amplicon_validate.sh <raw_dir> <out_dir> none 300 15
 #   -> <out_dir>/amplicon/         (wf-amplicon consensus + QC)
-#   -> <out_dir>/annotation/amplicon-annotation-report.html   (this feature)
+#   -> <out_dir>/annotation/amplicon-report-with-annotation.html  (combined = wf-amplicon + annotation)
+#   -> <out_dir>/annotation/amplicon-annotation-report.html       (annotation-only report)
 ```
 
 Or run it standalone on any `all-consensus-seqs.fasta` (inside the runtime image, which has Apptainer +
-the baked SIFs):
+the baked SIFs). Pass the wf-amplicon report as the 5th arg to also get the **combined** report (Stage 5);
+omit it to get just the annotation report:
 
 ```bash
-amplicon_annotate/annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt]
+amplicon_annotate/annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt] [wf_amplicon_report.html]
 ```
 
-## How it works (two `apptainer exec` post-steps, no Nextflow)
+## How it works (three post-steps: two required Apptainer steps + one optional merge, no Nextflow)
 
 1. **Stage 3 — annotate.** Split the multi-record consensus into one `<sample>.final.fasta` per record,
    then run our patched `run_plannotate.py --linear` inside the **plannotate SIF** against
    `--database Default` (SnapGene→blastn, Swiss-Prot/fpbase→diamond, Rfam→infernal). The `--linear` flag
    (see below) is the only change from the vendored wf-clone-validation script.
-2. **Stage 4 — report.** `combined_report.py` runs inside the **wf-clone-validation SIF** (it has
-   ezcharts + bokeh + pLannotate), loads `plannotate_report.json`, rebuilds the feature plot from the
-   dataframe, and writes one `LabsReport` HTML with a summary + the per-sample map + table.
+2. **Stage 4 — annotation report.** `combined_report.py` runs inside the **wf-clone-validation SIF** (it
+   has ezcharts + bokeh + pLannotate), loads `plannotate_report.json`, rebuilds the feature plot from the
+   dataframe, and writes one `LabsReport` HTML (`amplicon-annotation-report.html`) with a summary + the
+   per-sample **linear feature track** + pLannotate map + table.
+3. **Stage 5 — merge (optional).** If the `wf-amplicon` report is passed (`annotate.sh` arg 5),
+   `merge_report.py` splices the Stage-4 annotation section into that report and writes one **combined**
+   report, `amplicon-report-with-annotation.html`. It is **pure stdlib** — preferring the host `python3`,
+   with `python` inside the wf-clone-validation SIF as a fallback (no Nextflow, no extra SIF needed). The
+   splice is safe because both reports are built by the same ezcharts version and embed byte-identical
+   bokeh/echarts/datatables bundles, so the base report's JS runtime is reused (no library duplication,
+   UUID element ids ⇒ no collisions). See the [combined report](#the-combined-report-stage-5) note below.
 
-Files: `amplicon_annotate/{annotate.sh, run_plannotate.py, combined_report.py}` (baked into the image at
-`/opt/pcv/amplicon_annotate/`).
+Files: `amplicon_annotate/{annotate.sh, run_plannotate.py, combined_report.py, merge_report.py}` (baked
+into the image at `/opt/pcv/amplicon_annotate/`).
+
+## The combined report (Stage 5)
+
+The headline deliverable is one self-contained HTML — the usual `wf-amplicon-report.html` with the
+annotation added as an extra **"Annotation"** section (linear feature map + pLannotate map + feature
+table) plus a matching nav entry. It opens offline, renders both the wf-amplicon QC plots and the
+annotation plots, and works for multi-barcode runs (one consensus + one annotation per barcode, all
+folded into the per-sample dropdown). `amplicon_validate.sh` produces it automatically;
+`annotate.sh <consensus> <out> [params] [versions] <wf-amplicon-report.html>` produces it standalone.
 
 ## The `--linear` patch (why)
 
@@ -61,15 +85,24 @@ front and writes a `linear` GenBank. The patch is minimal and threads one `force
 `run_plannotate → per_assembly → create_gbk(get_gbk(is_linear=True))`; default (no flag) behaviour is
 unchanged, so it can be upstreamed.
 
-## Caveat — the feature map is pLannotate's circular renderer
+## The two feature maps (linear track + pLannotate map)
 
-pLannotate's plot is a **circular** map (with an origin tick in linear mode); it does not draw a
-left-to-right linear track. The **annotation table carries the precise linear coordinates** (start/end on
-the 1..N bp amplicon), which is the authoritative view for a linear product. A native linear track is a
-possible future enhancement.
+Each annotation section shows **two complementary views**:
+
+1. **Linear feature track** — a left-to-right backbone diagram (`linear_feature_map()` in
+   `combined_report.py`): forward (+) features above the backbone, reverse (−) below, overlapping
+   features packed into lanes, hover for details. This is the primary view for a linear PCR amplicon.
+2. **pLannotate map** — the tool's native (circular) renderer in linear mode, with an origin tick.
+   Unfilled features are incomplete (match covers <95 % of the database feature).
+
+The **annotation table** carries the precise linear coordinates (start/end on the 1..N bp amplicon) and is
+the authoritative tabular view. (Earlier docs called the linear track a "future enhancement" — it is now
+built; this section supersedes that note.)
 
 ## Offline / correctness
 
 Validated on a host against the committed example (`amplicon_test_example/`, barcode09, 3,249 bp): the run
 finds 5 elements — `IS1` (transposon), `attB2` (Gateway site), `insB1` (CDS) + 2 weak Swiss-Prot hits —
-and the GenBank is `linear`. No network access is used; all BLAST databases ship in the SIF.
+the GenBank is `linear`, and the **combined report** (`amplicon-report-with-annotation.html`) renders the
+wf-amplicon QC plots plus the annotation's two maps + table in one self-contained file. No network access
+is used; all BLAST databases ship in the SIF.

@@ -15,9 +15,12 @@ clone-validation checks in [`verify_devcontainer.md`](verify_devcontainer.md); h
 > - ✅ **What this verifies:** the image builds, the wf-amplicon SIF + code are baked, rootless Apptainer
 >   runs them, the medaka polishing model is bundled, and a de-novo run produces a **per-amplicon
 >   consensus + wf-amplicon's QC report — fully offline**.
-> - ⏳ **NOT in the image yet (do not test for):** the plannotate **annotation** and the **combined HTML
->   report** (Phase 2/3 in [`amplicon_plan.md`](amplicon_plan.md)). This image gives consensus + QC, not
->   the annotated report.
+> - ✅ **Now also in the image (built 2026-06-24):** the plannotate **`--linear` annotation** (Stage 3), the
+>   annotation HTML report (Stage 4, `amplicon-annotation-report.html`), and the **combined report** (Stage 5,
+>   `amplicon-report-with-annotation.html` = wf-amplicon report + annotation). These run offline via
+>   `apptainer exec` post-steps after the de-novo run; `amplicon_validate.sh` invokes them automatically. See
+>   [`amplicon_annotate.md`](amplicon_annotate.md). (This §-by-§ guide still focuses on the de-novo consensus;
+>   the annotation is exercised end-to-end by just running the full wrapper in §4.)
 > - 🔵 **Mode B (multiplex / multiple amplicons per barcode)** is an off-by-default `REF=` hook only — no
 >   data of that type yet; §5 just confirms the guard, it is not a functional test.
 
@@ -219,5 +222,7 @@ amplicon image test — <date>, host <name>
 | Offline (§4) | the `--network none` rerun completes (no model download) |
 | Guards (§5) | `OVERRIDE_BASECALLER_CFG` injected; `REF=` warns; smuggled `--reference` rejected |
 
-Anything under §4/annotation/combined-report is **out of scope** for this image — that's Phase 2/3 in
-[`amplicon_plan.md`](amplicon_plan.md).
+The annotation, the annotation report, and the combined report (`amplicon-report-with-annotation.html`) are
+**now built and in scope** (Phase 0–2; run automatically by `amplicon_validate.sh` §4 and described in
+[`amplicon_annotate.md`](amplicon_annotate.md)). Mode B (reference/multiplex) in
+[`amplicon_plan.md`](amplicon_plan.md) remains future.
