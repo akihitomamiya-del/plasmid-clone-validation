@@ -49,10 +49,15 @@ __pycache__/
 !reference_run_canu/**/
 !reference_run_canu/**
 
-# Committed amplicon example: raw reads (barcode09/) + an EPI2ME wf-amplicon de-novo
-# reference run — the amplicon correctness target (docs/amplicon_testing.md). Same pattern
-# as reference_run_canu: re-include dirs first (defeats the bare output/ ignore), then files
+# Committed amplicon example: barcode09_example/ (self-contained: raw reads barcodeNN/ + an EPI2ME
+# wf-amplicon de-novo reference run) — the amplicon correctness target (docs/amplicon_testing.md). Same
+# pattern as reference_run_canu: re-include dirs first (defeats the bare output/ ignore), then files
 # (defeats *.fastq.gz / *.bam / *.bai).
 !amplicon_test_example/
 !amplicon_test_example/**/
 !amplicon_test_example/**
+
+# barcode39_example/ is a LOCAL-ONLY second amplicon (Mode B testing). It exposes unpublished research,
+# so it is deliberately kept OUT of git -- this re-ignore (after the allowlist above) prevents an
+# accidental `git add`. Keep it on disk for local SPLIT/Mode-B runs; do NOT commit.
+amplicon_test_example/barcode39_example/

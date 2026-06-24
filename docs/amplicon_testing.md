@@ -39,13 +39,15 @@ Pass criteria are summarized at the bottom.
     barcode01/   *.fastq.gz      # one amplicon per barcode (Mode A)
     barcode02/   *.fastq.gz
   ```
-  **An example amplicon dataset now ships in this repo**, so this whole test runs with **no external
-  data**: `amplicon_test_example/barcode09/` (22 `*.fastq.gz`, ~3.5 MB — a real single-amplicon MinKNOW
-  *sup* run, ~3.2 kb product). It comes with a committed **reference run**,
-  `amplicon_test_example/wf-amplicon_*/output/` (a de-novo EPI2ME wf-amplicon v1.2.2 run; single consensus
-  **3,249 bp**), as the correctness target — the amplicon analogue of `reference_run_canu/`. Point the
-  wrapper at the parent `amplicon_test_example/`: it picks up `barcode09/` and **warns-and-skips** the
-  `wf-amplicon_*/` run dir (not `barcodeNN`). To test your own data instead, drop `barcodeNN/*.fastq.gz`
+  **Example amplicon datasets now ship in this repo**, each as a self-contained dir (`barcodeNN/` reads +
+  its committed EPI2ME reference run), so this whole test runs with **no external data**:
+  `amplicon_test_example/barcode09_example/` — `barcode09/` (22 `*.fastq.gz`, ~3.5 MB; a real single-amplicon
+  MinKNOW *sup* run, ~3.2 kb product) + the reference run `barcode09_example/wf-amplicon_*/output/` (a de-novo
+  EPI2ME wf-amplicon v1.2.2 run; single consensus **3,249 bp**), the correctness target — the amplicon
+  analogue of `reference_run_canu/`. Point the wrapper at the example dir
+  `amplicon_test_example/barcode09_example/`: it picks up
+  `barcode09/` and **warns-and-skips** the sibling `wf-amplicon_*/` run dir (not `barcodeNN`). To test your
+  own data instead, drop `barcodeNN/*.fastq.gz`
   under any dir — subdir names **must** match `barcodeNN` (≥2 digits). (A data-free smoke test is still
   possible by fetching wf-amplicon's bundled `test_data/` de-novo demo on the host.)
 
@@ -112,18 +114,18 @@ model is genuinely absent → §6 (pin one).
 ## 4. End-to-end: de-novo amplicon run, offline
 
 Uses the **shipped example** (§0) — no external data needed. `amplicon_validate.sh` is on `PATH`. Run from
-the repo root so `amplicon_test_example/` is the mount source; pass `300 15` to match the reference run's
-params (`min_read_length 300`, `min_read_qual 15`, de-novo) for a like-for-like consensus:
+the repo root so `amplicon_test_example/barcode09_example/` is the mount source; pass `300 15` to match the
+reference run's params (`min_read_length 300`, `min_read_qual 15`, de-novo) for a like-for-like consensus:
 ```bash
 mkdir -p amp_out && chmod 777 amp_out      # /out must be writable by the container's uid 1000 (vscode);
                                            # the chmod is only needed if your host account isn't uid 1000
 docker run --rm "${RUNARGS[@]}" \
-  -v "$PWD/amplicon_test_example":/data:ro \
+  -v "$PWD/amplicon_test_example/barcode09_example":/data:ro \
   -v "$PWD/amp_out":/out \
   "$IMG" \
   amplicon_validate.sh /data /out none 300 15
 ```
-(Substitute your own `barcodeNN/` dir for `/data` to test other amplicons.)
+(Substitute any `barcodeNN/` parent dir for `/data` to test other amplicons.)
 
 > **Writable out dir:** the bind-mounted `/out` must be writable by the container user (**uid 1000**). If
 > your host account isn't uid 1000, the `chmod 777` above (it's throwaway test scratch) is the simplest fix —
@@ -143,7 +145,7 @@ finishes with its normal completion summary. Outputs:
 reference run — its `.fai` reads `barcode09  3249`:
 ```bash
 seqkit stats amp_out/amplicon/all-consensus-seqs.fasta            # produced now
-cat amplicon_test_example/wf-amplicon_*/output/all-consensus-seqs.fasta.fai   # the target (barcode09 3249)
+cat amplicon_test_example/barcode09_example/wf-amplicon_*/output/all-consensus-seqs.fasta.fai  # target (barcode09 3249)
 ```
 The **length** should match (single ~3.2 kb contig). The exact bases may differ by a few if your basecaller
 model/params differ from the reference (300/Q15, de-novo) — expected, like the plasmid AUTO-vs-matched-params
