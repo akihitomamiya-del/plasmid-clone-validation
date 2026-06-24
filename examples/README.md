@@ -5,7 +5,7 @@ holding **one folder per barcode** (`barcodeNN/`, two-digit), each with `*.fastq
 
     <dir>/
       barcode01/  *.fastq.gz
-      barcode09/  *.fastq.gz
+      barcode02/  *.fastq.gz
 
 `clone_validate.sh <dir> …` and `amplicon_validate.sh <dir> …` both consume exactly this layout
 (sibling non-`barcodeNN` dirs are warned-and-skipped).

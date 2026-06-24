@@ -67,8 +67,8 @@ products don't overlap/co-map). Three ways to reconstruct each amplicon:
   barcode's reads by **all-vs-all overlap** (`minimap2 -x ava-ont` → union-find connected components — reads
   from different products don't overlap, so they fall into separate clusters), emit one FASTQ per cluster,
   then de-novo each. Wired as `SPLIT=1 amplicon_validate.sh …` (Mode A 'none' filter only). **Validated**
-  (locally): barcode09 (3.2 kb) + a second distinct 1.6 kb amplicon mixed in one barcode → **0 cross-amplicon
-  overlaps**, 2 clean clusters, both recovered at **100% identity** and annotated in one combined report.
+  (2026-06-24) on the committed public example: its two amplicons (~2,156 & ~3,283 bp) mixed into one barcode
+  → **0 cross-amplicon overlaps**, 2 clean clusters, both recovered at **100% identity** and annotated.
   **Why it matters:** stock wf-amplicon de-novo keeps only the single highest-depth contig (`trim_and_qc.py`),
   so a mixed barcode otherwise collapses to one product. **Caveat:** distinct-locus only — amplicons sharing a
   stretch longer than `SPLIT_MIN_OVERLAP` merge into one cluster (use B1); short fragments below `min_len` drop.

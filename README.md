@@ -35,6 +35,9 @@ my_amplicons/
 ./amplicon_validate.sh my_amplicons runs/my_amplicons
 ```
 
+> **Just want to see it work first?** Run the example shipped in this repo:
+> `./amplicon_validate.sh examples/amplicon/raw runs/example` — two amplicons (~2.2 + ~3.3 kb), annotated.
+
 It builds a consensus sequence for each barcode, finds known elements in it (genes, promoters, sites…) by
 BLAST, and makes one report. **Prefer to just ask Claude?** Say *“run the amplicon workflow with annotation
 on my_amplicons”* — it runs the same thing and points you to the report.
@@ -87,7 +90,7 @@ products share a long identical stretch, give a reference instead (`REF=amplicon
 | `docs/assembly_testing.md` | **canu vs flye**: how to select the assembler, params to sweep, why flye fails here, and a ready test matrix. |
 | `docs/assembly_findings_2026-06-21.md` | **Which lever decides the assembly** (length-selection vs quality vs assembler) — the controlled factorial, the validated canu-vs-flye mechanism (flye's SIGFPE), the data-driven peak finder, and an inside-vs-outside check. |
 | `.devcontainer/` | **Two-artifact container layout** (see `.devcontainer/README.md`): `build/` = publishable lean runtime image → GHCR; `claude-code/` = the firewalled Claude yolo-mode sandbox `FROM` it; top-level `devcontainer.json` = default pipeline use. |
-| `examples/plasmid/raw/` | A runnable example: `barcode69/` (raw ~765-read concat) + a reference filtered output. |
+| `examples/` | Shipped fixtures, one layout per pipeline (`<pipeline>/{raw/, reference_run_*/}`): `plasmid/` (barcode69; 5,652 bp target) and `amplicon/` (barcode18+barcode21; ~2,156 + ~3,283 bp targets), each with its EPI2ME reference run as the correctness target. |
 
 ## Getting started
 
@@ -274,9 +277,10 @@ estimate_length_peak.sh    # AUTO engine: yield-weighted histogram → full-leng
 .github/workflows/docker-publish.yml   # CI: build + publish the runtime to GHCR on `git tag v*`
 docs/                      # getting_started · sif_cache · host_userns_prereq · decision_log · assembly_testing ·
                            #   assembly_findings_2026-06-21 · verify_devcontainer · archive/
-examples/plasmid/raw/barcode69/ # runnable example (raw concat) + its pre-filtered output
-examples/plasmid/reference_run_canu/        # EPI2ME canu reference output = correctness target (1 contig, 5,652 bp)
-# gitignored: runs/ cloneval/ nf_input/ work/ *.sif *.fastq.gz   (only examples/plasmid/raw/** is allowlisted)
+examples/                  # all shipped fixtures, one layout per pipeline: <pipeline>/{raw/, reference_run_*/}
+  plasmid/  raw/barcode69/ (concat) + reference_run_canu/         # clone-validation example + target (5,652 bp)
+  amplicon/ raw/{barcode18,barcode21}/ + reference_run_wf-amplicon/  # amplicon example + targets (2,156 + 3,283 bp)
+# gitignored: runs/ cloneval/ nf_input/ work/ *.sif *.fastq.gz   (only examples/** is allowlisted)
 ```
 
 ## Tool provenance
