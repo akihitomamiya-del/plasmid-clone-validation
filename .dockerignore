@@ -12,5 +12,4 @@ work/
 *.img
 *.fastq
 *.fastq.gz
-example_rawdata/
-reference_run_canu/
+examples/

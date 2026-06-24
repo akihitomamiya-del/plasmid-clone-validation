@@ -38,26 +38,22 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Committed example data (overrides the *.fastq.gz ignore above).
-# Recursive so barcodeNN/ subdirs (the layout the scripts require) are tracked too.
-!example_rawdata/
-!example_rawdata/**
+# ── Committed example & reference data (all under examples/) ─────────────────────────
+# The globals above ignore real data (*.fastq.gz, *.bam, output/, runs/, AND the bare
+# `amplicon/` pipeline-output dir-name, etc.). These negations re-include ONLY the shipped
+# fixtures under examples/. Order matters (last match wins) and DIRECTORIES must be
+# re-included BEFORE files: `!examples/**/` defeats the bare `output/` and `amplicon/`
+# dir-ignores so git descends into examples/amplicon and the wf-amplicon_*/output and
+# reference_run_canu/output trees; `!examples/**` then defeats *.fastq.gz / *.bam / *.fastq.
+!examples/
+!examples/**/
+!examples/**
 
-# Committed reference run (EPI2ME canu output, the build's correctness target).
-# Re-include dirs first (defeats the bare output/ ignore), then files (defeats *.fastq).
-!reference_run_canu/
-!reference_run_canu/**/
-!reference_run_canu/**
-
-# Committed amplicon example: barcode09_example/ (self-contained: raw reads barcodeNN/ + an EPI2ME
-# wf-amplicon de-novo reference run) — the amplicon correctness target (docs/amplicon_testing.md). Same
-# pattern as reference_run_canu: re-include dirs first (defeats the bare output/ ignore), then files
-# (defeats *.fastq.gz / *.bam / *.bai).
-!amplicon_test_example/
-!amplicon_test_example/**/
-!amplicon_test_example/**
-
-# barcode39_example/ is a LOCAL-ONLY second amplicon (Mode B testing). It exposes unpublished research,
-# so it is deliberately kept OUT of git -- this re-ignore (after the allowlist above) prevents an
-# accidental `git add`. Keep it on disk for local SPLIT/Mode-B runs; do NOT commit.
-amplicon_test_example/barcode39_example/
+# ── LOCAL-ONLY amplicon (Mode B testing) — NEVER commit ──────────────────────────────
+# barcode39_example/'s insert exposes unpublished research. Re-ignored AFTER the allowlist
+# above (last match wins) so an accidental `git add` is blocked. BOTH lines are required:
+# the dir line blocks adding the folder; the `/**` line re-ignores the files that the
+# aggressive `!examples/**` above would otherwise re-include. Keep it on disk for local
+# SPLIT/Mode-B runs; do NOT commit.
+examples/amplicon/barcode39_example/
+examples/amplicon/barcode39_example/**
