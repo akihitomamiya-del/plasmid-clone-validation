@@ -50,20 +50,32 @@ Confirmed parameters:
 - **Multiplex (Mode B) specifics, confirmed for later:** distinct loci (reads map uniquely → separation reliable); 2–4 amplicons/barcode.
 - **Basecaller:** MinKNOW **sup, R10.4.1 E8.2 5 kHz**. Medaka **auto-selects** its polishing model from the basecaller id embedded in the reads — we don't pin it (offline caveat in §8b).
 
-## 3. Mode B (multiplex, reference-guided) — directions for later (no data yet)
+## 3. Mode B (multiplex, single barcode / multiple amplicons)
 
-Deferred until there's data, but the design is settled enough to record. Pooling **distinct-locus**
-amplicons per barcode and separating by mapping is feasible (reads align uniquely). Two ways to
-reconstruct each amplicon — decision deferred:
+Pooling **distinct-locus** amplicons per barcode and separating them is feasible (reads from different
+products don't overlap/co-map). Three ways to reconstruct each amplicon:
 
 - **B1 — reference-anchored consensus (native).** Same workflow, `--reference amplicons.fasta`
   (multi-record). Reads bin by mapping; each amplicon → `medaka.consensus.fasta` + `medaka.annotated.vcf.gz`.
   ~Zero custom code (just a different invocation). Best when amplicons closely match the reference; large
-  indels show up as variants, not as freely-assembled sequence.
+  indels show up as variants, not as freely-assembled sequence. (`amplicon_validate.sh` `REF=` hook.)
 - **B2 — reference-for-binning + de-novo per bin (custom hybrid).** A `minimap2` binning pre-step assigns
   each read to its best-matching amplicon, writes one FASTQ bin per amplicon, then feeds each bin as a
-  "sample" to wf-amplicon **de-novo**. Unbiased per-amplicon assembly; more moving parts. Best if amplicons
-  may deviate substantially from the reference.
+  "sample" to wf-amplicon **de-novo**. Unbiased per-amplicon assembly. Best if amplicons may deviate
+  substantially from the reference.
+- **B2-reffree — UNGUIDED binning, no reference (PROTOTYPED 2026-06-24).** `amplicon_split.sh`: cluster the
+  barcode's reads by **all-vs-all overlap** (`minimap2 -x ava-ont` → union-find connected components — reads
+  from different products don't overlap, so they fall into separate clusters), emit one FASTQ per cluster,
+  then de-novo each. Wired as `SPLIT=1 amplicon_validate.sh …` (Mode A 'none' filter only). **Validated**
+  (locally): barcode09 (3.2 kb) + a second distinct 1.6 kb amplicon mixed in one barcode → **0 cross-amplicon
+  overlaps**, 2 clean clusters, both recovered at **100% identity** and annotated in one combined report.
+  **Why it matters:** stock wf-amplicon de-novo keeps only the single highest-depth contig (`trim_and_qc.py`),
+  so a mixed barcode otherwise collapses to one product. **Caveat:** distinct-locus only — amplicons sharing a
+  stretch longer than `SPLIT_MIN_OVERLAP` merge into one cluster (use B1); short fragments below `min_len` drop.
+
+Each amplicon's consensus then flows through the same Stage 3 (plannotate, linear) + Stages 4–5 (annotation +
+combined report) as Mode A, with one sub-section + one `.gbk` per amplicon. Only `barcode09_example/` is
+committed; the second amplicon used to validate B2-reffree is kept local-only (it exposes unpublished work).
 
 Either way, each amplicon's consensus then flows through the same Stage 3 (plannotate, linear) + Stage 4
 (combined report) as Mode A, with 2–4 per-amplicon sub-sections per barcode. `amplicon_validate.sh` already
@@ -413,11 +425,15 @@ Critical gotchas:
   host-only: re-running it end-to-end through `amplicon_validate.sh` to confirm the ~3,249 bp consensus
   reproduces from the freshly-built image.
 
-**Example data — DONE (2026-06-23).** A real single-amplicon dataset now ships in-repo at
-`amplicon_test_example/barcode09/` (22 `*.fastq.gz`, ~3.5 MB; MinKNOW *sup*, ~3.2 kb product), alongside a
-committed **reference run** at `amplicon_test_example/wf-amplicon_*/output/` (de-novo EPI2ME wf-amplicon
-v1.2.2; single consensus **3,249 bp** for `barcode09`; params `min_read_length=300 / min_read_qual=15 /
-reference=null`). This is the amplicon correctness target — analogous to `reference_run_canu/` — and is
+**Example data — DONE (2026-06-23).** Real single-amplicon datasets now ship in-repo, each as a
+self-contained dir (`barcodeNN/` reads + its EPI2ME reference run): `amplicon_test_example/barcode09_example/`
+— `barcode09/` (22 `*.fastq.gz`, ~3.5 MB; MinKNOW *sup*, ~3.2 kb product) alongside a committed **reference
+run** at `barcode09_example/wf-amplicon_*/output/` (de-novo EPI2ME wf-amplicon v1.2.2; single consensus
+**3,249 bp** for `barcode09`; params `min_read_length=300 / min_read_qual=15 / reference=null`). A second
+distinct amplicon (the multiplex/Mode B second product) is kept **local-only** — `.gitignore` excludes
+`amplicon_test_example/barcode39_example/` because its insert exposes unpublished research; do not commit it.
+The committed `barcode09_example/` is the amplicon correctness target —
+analogous to `reference_run_canu/` — and is
 allowlisted in `.gitignore` (mirroring the `example_rawdata` / `reference_run_canu` blocks). It is the
 **user's own sequencing data**, so there's no third-party-license question. A downsampled slice of
 wf-amplicon's bundled `test_data/` remains a data-free fallback for forkers who can't ship their own reads.

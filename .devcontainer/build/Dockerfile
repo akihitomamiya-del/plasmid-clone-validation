@@ -118,7 +118,7 @@ RUN nextflow pull epi2me-labs/wf-amplicon -r "${WF_AMPLICON_VERSION}" \
 # clone_validate.sh / amplicon_validate.sh resolve their siblings (the filter/peak scripts) via
 # SCRIPT_DIR, so all of them live together; /opt/pcv on PATH makes `clone_validate.sh …` and
 # `amplicon_validate.sh …` work without the workspace bind-mount.
-COPY filter_nanopore_reads.sh estimate_length_peak.sh clone_validate.sh amplicon_validate.sh /opt/pcv/
+COPY filter_nanopore_reads.sh estimate_length_peak.sh clone_validate.sh amplicon_validate.sh amplicon_split.sh /opt/pcv/
 COPY amplicon_annotate /opt/pcv/amplicon_annotate
 RUN chmod +x /opt/pcv/*.sh /opt/pcv/amplicon_annotate/*.sh && chown -R vscode:vscode /opt/pcv
 ENV PATH="/opt/pcv:${PATH}"

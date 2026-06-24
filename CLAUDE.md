@@ -96,6 +96,14 @@ don't make them recall a flag:
   stdlib** (host `python3`, SIF `python` fallback — NOT Apptainer-only) and safe because both reports embed
   byte-identical ezcharts/bokeh bundles (reuse the base runtime; UUID ids ⇒ no collisions). Don't add JS
   libraries to the splice or re-carry the DataTable init (it's inline in the section). See `docs/amplicon_annotate.md`.
+- **Mode B — single barcode, multiple amplicons (`SPLIT=1`, prototype):** stock wf-amplicon de-novo keeps only
+  ONE consensus per barcode (`trim_and_qc.py` picks the highest-depth contig), so a mixed barcode collapses to
+  one product. `SPLIT=1 amplicon_validate.sh …` runs `amplicon_split.sh` first — **reference-free** read
+  clustering by `minimap2 -x ava-ont` overlap (union-find) → one wf-amplicon sample (`barcodeNN_cK`) per
+  amplicon → each assembled + annotated in the one combined report. **Distinct-locus only** (amplicons sharing
+  a region longer than `SPLIT_MIN_OVERLAP` merge → use `REF=`). `none` filter mode only. Validated locally on
+  barcode09(3.2kb) + a second distinct 1.6kb amplicon mixed → both recovered @100%. See `docs/amplicon_plan.md`
+  §3 (B2-reffree). (That second amplicon is kept local-only — `.gitignore` excludes `barcode39_example/`.)
 - **SIF cache filenames** Nextflow expects must be confirmed by one online run (`docs/sif_cache.md`) —
   the #1 thing that silently breaks offline.
 - **Assembler is THE critical lever (validated 2026-06-21):** `clone_validate.sh` now **defaults to

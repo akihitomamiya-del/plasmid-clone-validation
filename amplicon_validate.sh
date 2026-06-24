@@ -38,6 +38,11 @@
 #   REF                     path to a multi-FASTA reference -> reference/variant-calling mode (FUTURE)
 #   OVERRIDE_BASECALLER_CFG pin the medaka model (default: auto-detect from the reads)
 #   EXTRA_NF_ARGS           extra nextflow flags, e.g. "--drop_frac_longest_reads 0"
+#   SPLIT                   set (e.g. SPLIT=1) -> reference-free MULTI-AMPLICON binning (Mode B): split each
+#                           barcode into one sample per amplicon by read overlap (amplicon_split.sh) BEFORE
+#                           wf-amplicon, so distinct-locus amplicons pooled in one barcode each get their own
+#                           consensus + annotation. de-novo only; 'none' filter mode only. A single-amplicon
+#                           barcode just yields one cluster. Tunables: SPLIT_MIN_READS (40), SPLIT_MIN_OVERLAP (400).
 #
 # Examples:
 #   ./amplicon_validate.sh example_amplicon runs/amp                  # de-novo, no pre-filter
@@ -96,10 +101,17 @@ fi
 NF_IN="$OUT/nf_input"; rm -rf "$NF_IN"; mkdir -p "$NF_IN"
 shopt -s nullglob
 
+if [[ -n "${SPLIT:-}" && "$FILTER_MODE" != "none" ]]; then
+    echo "ERROR: SPLIT (Mode B binning) supports filter_mode 'none' only (got '$FILTER_MODE')." >&2; exit 1
+fi
+
 echo "== amplicon_validate =="
 echo "raw=$RAW  out=$OUT  mode=$MODE  filter=$FILTER_MODE  minLen=$MINLEN  minQ=$MINQ  maxLen=${MAXLEN:-none}  profile=$PROFILE"
+if [[ -n "${SPLIT:-}" ]]; then
+    echo "  SPLIT mode ON (Mode B): reference-free per-barcode amplicon binning (min_reads=${SPLIT_MIN_READS:-40}, min_overlap=${SPLIT_MIN_OVERLAP:-400})."
+fi
 
-# 1) prepare reads into NF_IN/barcodeNN/reads.fastq.gz
+# 1) prepare reads into NF_IN/<sample>/reads.fastq.gz  (<sample> = barcodeNN, or barcodeNN_cK under SPLIT)
 n=0
 if [[ "$FILTER_MODE" == "none" ]]; then
     # No pre-filter: concat raw reads per barcode (preserves FASTQ headers -> medaka auto-model works).
@@ -109,9 +121,28 @@ if [[ "$FILTER_MODE" == "none" ]]; then
         if [[ ! "$bc" =~ ^barcode[0-9][0-9]+$ ]]; then
             echo "WARNING: subdir '$bc' is not in barcodeNN format -- skipping." >&2; continue
         fi
-        mkdir -p "$NF_IN/$bc"
-        cat "${bc_dir}"*.fastq.gz > "$NF_IN/$bc/reads.fastq.gz"
-        n=$((n + 1))
+        if [[ -n "${SPLIT:-}" ]]; then
+            # Mode B: reference-free split into one sample per amplicon cluster.
+            cat "${bc_dir}"*.fastq.gz > "$NF_IN/.${bc}.concat.fastq.gz"
+            "$SCRIPT_DIR/amplicon_split.sh" "$NF_IN/.${bc}.concat.fastq.gz" "$NF_IN/.split_$bc" \
+                "${SPLIT_MIN_READS:-40}" "${SPLIT_MIN_OVERLAP:-400}" "$MINLEN"
+            rm -f "$NF_IN/.${bc}.concat.fastq.gz"
+            k=0
+            for cl in "$NF_IN/.split_$bc"/cluster*.fastq.gz; do
+                k=$((k + 1)); sample="${bc}_c$(printf '%02d' "$k")"
+                mkdir -p "$NF_IN/$sample"; mv "$cl" "$NF_IN/$sample/reads.fastq.gz"; n=$((n + 1))
+            done
+            rm -rf "$NF_IN/.split_$bc"
+            if (( k > 1 )); then
+                echo "  SPLIT: $bc -> $k amplicon clusters (MULTI-AMPLICON barcode!)"
+            else
+                echo "  SPLIT: $bc -> $k cluster (single amplicon)"
+            fi
+        else
+            mkdir -p "$NF_IN/$bc"
+            cat "${bc_dir}"*.fastq.gz > "$NF_IN/$bc/reads.fastq.gz"
+            n=$((n + 1))
+        fi
     done
 else
     # Optional pre-filter via the shared generic length/Q filter (filter_nanopore_reads.sh).

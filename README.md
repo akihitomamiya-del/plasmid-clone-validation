@@ -58,6 +58,21 @@ To view the `.html` inside VS Code: right-click it → **Show Preview**.
 
 Full amplicon reference (options, how it works, the annotation): **[`docs/amplicon_annotate.md`](docs/amplicon_annotate.md)**.
 
+### Two or more amplicons in the *same* barcode? (`SPLIT=1`)
+
+If you pooled **several different PCR products into one barcode**, add `SPLIT=1`:
+
+```bash
+SPLIT=1 ./amplicon_validate.sh my_amplicons runs/my_amplicons
+```
+
+It automatically separates the reads by amplicon — **no reference needed** — and gives you **one consensus
++ one annotation per amplicon**, all in the same combined report and `deliverables/` folder (named
+`<barcode>_c01_*`, `<barcode>_c02_*`, …). It’s safe to leave on for normal single-amplicon barcodes too
+(they just come out as one cluster). It works when the amplicons are **different sequences**; if two
+products share a long identical stretch, give a reference instead (`REF=amplicons.fasta`). How it works:
+[`docs/amplicon_plan.md` §3](docs/amplicon_plan.md) (B2-reffree).
+
 ## Contents
 
 | File | What it does |
