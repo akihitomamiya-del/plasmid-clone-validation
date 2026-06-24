@@ -4,11 +4,12 @@ Two-artifact layout (the L3R-seq pattern, **adapted** for this repo's offline-Ap
 
 | path | what it is | published? |
 |---|---|---|
-| `build/` | the **runtime image** → `ghcr.io/akihitomamiya-del/plasmid-clone-validation` — base + Java + Nextflow + Apptainer + seqkit + the **5 baked SIFs** + workflow code + our scripts. Lean (~5.3 GB), fully offline. | **yes** — GHCR, via `../.github/workflows/docker-publish.yml` |
-| `claude-code/` | the **Claude-Code sandbox** — `FROM` the runtime image; adds node + Claude CLI + egress firewall + sudo-lockdown. The agent-containment layer; the only part that changes when Claude updates. | no (built locally) |
+| `build/` | the **runtime image** → `ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest` — base + Java + Nextflow + Apptainer + seqkit + the **6 baked SIFs** (5 clone-val + wf-amplicon) + workflow code + our scripts + the amplicon annotation. Lean (~6 GB), fully offline. | **yes** — GHCR `:latest`/`:0.2.0`, via `../.github/workflows/docker-publish.yml` |
+| `claude-code/` | **builds** the **Claude-Code sandbox** — `FROM` the runtime image; adds node + Claude CLI + egress firewall + sudo-lockdown. The agent-containment layer; the only part that changes when Claude updates. | **yes** — GHCR `:claude-code`/`:claude-code-0.2.0` |
+| `claude-code-image/` | **pulls** that prebuilt sandbox (`image: …:claude-code`) — same firewalled yolo sandbox, **no local build**. | — (pulls `:claude-code`) |
 | `devcontainer.json` (here) | **default** config — run the pipeline straight from the published runtime image (no Claude, no firewall). | — |
 
-Pick a config in **"Dev Containers: Reopen in Container"**: default (pipeline), **`claude-code`** (yolo sandbox), or **`build`** (iterate the runtime image).
+Pick a config in **"Dev Containers: Reopen in Container"**: default (pipeline), **`claude-code-image`** (yolo sandbox, **pull** — no build), **`claude-code`** (build the sandbox locally), or **`build`** (iterate the runtime image).
 
 ## Why Apptainer in the devcontainer (deliberate — *not* L3R-seq's conda model)
 The workflow runs each step in an ONT container via **rootless Apptainer**, nested inside the devcontainer.
@@ -53,6 +54,18 @@ Claude bump rebuilds only the thin `claude-code` layer (~230 MB) — the runtime
 ```bash
 # inside the sandbox, smoke test:
 nextflow info && apptainer --version && seqkit version && claude --version
-ls /opt/sif-cache                                            # 5 ontresearch-*.img
+ls /opt/sif-cache                                            # 6 ontresearch-*.img (5 clone-val + wf-amplicon)
 ./clone_validate.sh example_rawdata runs/cv auto            # Completed successfully / 5652
+```
+
+## Pulling the Claude-Code sandbox (no local build)
+The sandbox image is published too, so you can skip the local build: pick the **`claude-code-image`** config,
+or `docker pull ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code`. Same firewalled yolo sandbox,
+with node + Claude CLI + the amplicon/clone-val pipelines baked in. Set `CLAUDE_CODE_OAUTH_TOKEN` (or
+`ANTHROPIC_API_KEY`) in your **host** env first — `claude /login` can't reach claude.ai through the firewall.
+After a Claude bump, rebuild + republish the thin layer:
+```bash
+docker build -f .devcontainer/claude-code/Dockerfile \
+  -t ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code . \
+  && docker push ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code
 ```

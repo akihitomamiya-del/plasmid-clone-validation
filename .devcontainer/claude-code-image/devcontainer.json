@@ -1,0 +1,73 @@
+{
+  // plasmid-clone-validation — Claude Code SANDBOX (offline yolo-Claude), PREBUILT.
+  // PULLS the published claude-code image from GHCR instead of building the layer
+  // locally — the "pull" counterpart to ../claude-code (which BUILDS the same image).
+  // Pick this in "Dev Containers: Reopen in Container" to get the firewalled Claude
+  // sandbox with no local build. The image already bundles node + the Claude CLI +
+  // the egress firewall + sudo-lockdown + Live Preview, on top of the runtime base
+  // (so the amplicon + clone-validation pipelines are baked in too).
+  "name": "plasmid-clone-validation (Claude Code Sandbox, prebuilt)",
+  "image": "ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code",
+
+  // Egress firewall (NET_ADMIN/NET_RAW) + rootless Apptainer on a userns-hardened host
+  // (seccomp=unconfined + systempaths=unconfined + /dev/fuse + the custom pcv-apptainer
+  // AppArmor profile, NOT apparmor=unconfined). systempaths=unconfined unmasks /proc so the
+  // workflow's nested Apptainer can mount a fresh /proc. Container-scoped; far short of --privileged.
+  // HOST PREREQUISITE (one-time, admin): sudo bash .devcontainer/setup-host-apparmor.sh
+  //   — else Docker errors "apparmor profile pcv-apptainer not found" and the container won't start.
+  // CAVEAT: runArgs are IGNORED by GitHub Codespaces — use VS Code / devcontainer-CLI locally.
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW",
+    "--security-opt", "seccomp=unconfined",
+    "--security-opt", "apparmor=pcv-apptainer",
+    "--security-opt", "systempaths=unconfined",
+    "--device", "/dev/fuse"
+  ],
+
+  "features": { "ghcr.io/devcontainers/features/github-cli:1": {} },
+
+  "containerEnv": {
+    "NXF_SINGULARITY_CACHEDIR": "/opt/sif-cache",
+    "NXF_HOME": "/opt/nextflow",
+    "NXF_OFFLINE": "true",
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  // Claude needs a token in your HOST env (claude /login can't reach claude.ai through the firewall):
+  //   export CLAUDE_CODE_OAUTH_TOKEN=...   (preferred; long-lived `claude setup-token`)
+  //   or  export ANTHROPIC_API_KEY=...
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
+  },
+
+  // Per-${devcontainerId} volumes → each user/devcontainer gets ISOLATED Claude creds + history.
+  // Do NOT mount a volume over /opt — the baked SIF cache + pulled workflow live there.
+  "mounts": [
+    "source=pcv-claude-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
+    "source=pcv-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
+  ],
+
+  "remoteUser": "vscode",
+  // KEEP true: the workspace is bind-mounted from the host, so vscode must match the host uid to
+  // write it. Side effect: /opt (baked at build uid 1000) is orphaned when host dev-uid != 1000 —
+  // fix-opt-ownership.sh (postStartCommand) re-chowns it to the runtime uid at start.
+  "updateRemoteUserUID": true,
+
+  // Live Preview installs from the baked .vsix in the PRE-firewall window (postCreate precedes
+  // postStart). Non-fatal; logs to /tmp/live-preview-install.log.
+  "postCreateCommand": {
+    "livePreview": "bash /usr/local/bin/install-live-preview.sh"
+  },
+
+  // postStartCommand entries run in PARALLEL via scoped-NOPASSWD sudo (blanket sudo is removed in
+  // the image so a yolo agent can't flush the firewall).
+  //  - fixOwnership: re-align /opt to the runtime vscode uid (updateRemoteUserUID side effect).
+  //  - firewall: Apptainer shares the container netns, so this OUTPUT allowlist governs the workflow too.
+  "postStartCommand": {
+    "fixOwnership": "sudo /usr/local/bin/fix-opt-ownership.sh",
+    "firewall": "sudo /usr/local/bin/start-firewall.sh"
+  },
+  "waitFor": "postStartCommand"
+}
