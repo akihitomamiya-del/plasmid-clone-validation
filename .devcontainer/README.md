@@ -20,8 +20,9 @@ This needs `seccomp=unconfined` + `systempaths=unconfined` + `/dev/fuse` + the s
 AppArmor profile (host prereq below).
 
 ## Claude yolo-mode containment (the security model)
-The sandbox runs Claude with `--dangerously-skip-permissions`. The **egress firewall is the only guardrail**,
-so it must be un-removable by the agent:
+The sandbox runs Claude with `--dangerously-skip-permissions`. The **egress firewall is the primary
+guardrail** — it is *egress-only* (see Scope) and stays un-removable by the agent **only because the agent
+runs non-root** (keep it that way — see the invariant below):
 - **No blanket sudo.** The base image's `vscode ALL=(root) NOPASSWD:ALL` is removed; only three scoped,
   root-owned, argument-less scripts are sudo-able: the firewall (re-apply only), the `/opt/nextflow`
   ownership helper, and the Claude-CLI refresh (`install-claude.sh`, a root-owned `npm i -g` — Claude stays
@@ -34,8 +35,24 @@ so it must be un-removable by the agent:
   the warning banner is wired into `~/.bashrc`.
 - **AppArmor `pcv-apptainer (enforce)`** denies sensitive `/proc`,`/sys` even though Apptainer opens userns.
 
-Validated end-to-end on a uid-1001 host: firewall up, `example.com` blocked, `api.github.com` reachable,
-`sudo iptables` denied, agent can't tamper with Claude, byte-identical assembly.
+**Scope — what this contains, and what it does NOT.** The firewall blocks network exfil/C2 to
+non-allowlisted hosts. It does **not** protect the host filesystem: the workspace is bind-mounted
+**read-write**, so a prompt-injected agent can edit host files — `.git/hooks`, the host-run
+`setup-host-apparmor.sh` (executed `sudo` on the host), `devcontainer.json` (next rebuild), the firewall
+*source* — and can write the API token to disk. Pair the firewall with a **Claude-Code command policy**
+(deny/ask rules + a `PreToolUse` hook for `sudo` / `rm -rf` / docker prunes / `git push` / …) and review
+agent diffs before you rebuild, commit, or run host `sudo`.
+
+**Invariant — keep the agent non-root.** The firewall is un-removable because `vscode` has no `NET_ADMIN`
+and cannot `iptables -F` (only root, via the two scoped sudo scripts, applies it). Under **rootful** Docker
+this composes with a writable bind-mounted workspace: the non-root `vscode` is uid-matched to the host via
+`updateRemoteUserUID`, so it owns the workspace *and* lacks the cap to flush the firewall. To preserve
+containment: keep `remoteUser: vscode`/`node` (never `root`), keep the scoped sudo (no blanket
+`NOPASSWD:ALL`), do **not** grant the agent `NET_ADMIN`, and do **not** bind-mount `/var/run/docker.sock`
+(under rootful that is host root).
+
+Validated end-to-end on a **rootful** uid-1001 host: firewall up, `example.com` blocked, `api.github.com`
+reachable, `sudo iptables` denied, agent can't tamper with Claude, byte-identical assembly.
 
 ## Host prerequisite (one-time, admin)
 On a host that hardens user namespaces (`apparmor_restrict_unprivileged_userns=1`, Ubuntu 23.10+), load the
