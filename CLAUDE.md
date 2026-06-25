@@ -6,7 +6,7 @@ lives in `docs/`.
 ## What this repo is
 CLI tooling to run Oxford Nanopore's **EPI2ME `wf-clone-validation`** (plasmid assembly + QC) with our
 own **read pre-filtering** (length window + mean Q) applied *before* assembly — plus a **dedicated
-sandboxed devcontainer** so Claude Code runs firewalled (safe for `--dangerously-skip-permissions`)
+sandboxed devcontainer** so Claude Code runs firewalled (egress-contained for `--dangerously-skip-permissions`)
 while the workflow runs **offline** via Apptainer.
 
 A **second pipeline** wraps EPI2ME **`wf-amplicon`** (de-novo amplicon consensus) and adds **pLannotate-style
@@ -126,7 +126,10 @@ don't make them recall a flag:
 - **Claude yolo mode** runs as the non-root `vscode` user, but **Claude is installed as root** (global prefix
   root-owned) so the contained agent can't modify/replace its own CLI or `npm i -g`. It needs a token in the
   host env (`CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY`); `claude /login` won't work (firewall blocks
-  claude.ai). The firewall is the guardrail — confirm `/tmp/firewall-status` is `ok` before relying on it.
+  claude.ai). The firewall is the **egress** guardrail — it does NOT protect the host filesystem (the
+  workspace bind is writable to the host; pair it with a Claude-Code command policy for `sudo`/`rm -rf`/docker
+  prunes/`git push`), and it is un-removable only while the agent is **non-root** (keep `remoteUser` non-root,
+  never `root`). Confirm `/tmp/firewall-status` is `ok` before relying on it.
   Two non-obvious requirements (both silently break auth):
   (1) **`~/.claude` must be `vscode`-owned.** The config volume mounts there; if the image doesn't
   pre-create+chown `/home/vscode/.claude` the named volume comes up `root`-owned and the CLI can't

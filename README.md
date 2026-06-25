@@ -117,7 +117,7 @@ cat runs/cv/cloneval/sample_status.txt        # -> Completed successfully / 1 co
 | config | what it gives you | image |
 |---|---|---|
 | **default** (`.devcontainer/devcontainer.json`) | run the pipeline from the published runtime — no Claude, no firewall | pulls `ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest` |
-| **`claude-code`** | the offline **yolo-Claude sandbox** — node + Claude CLI + egress firewall + sudo-lockdown atop the runtime (safe for `--dangerously-skip-permissions`) | builds the thin `claude-code` layer `FROM` the runtime |
+| **`claude-code`** | the offline **yolo-Claude sandbox** — node + Claude CLI + egress firewall + sudo-lockdown atop the runtime (egress-contained for `--dangerously-skip-permissions`) | builds the thin `claude-code` layer `FROM` the runtime |
 | **`build`** | build / iterate the **runtime image** itself | builds `.devcontainer/build/Dockerfile` locally |
 
 Full structure + the containment model: **`.devcontainer/README.md`**.
@@ -237,7 +237,7 @@ Force flye (expect failure) with `EXTRA_NF_ARGS="--assembly_tool flye"`. Details
 
 ## Running outside the container (host Docker)
 
-The devcontainer (Apptainer, offline, firewalled — safe for yolo Claude) is the recommended runtime,
+The devcontainer (Apptainer, offline, firewalled — egress-contained for yolo Claude) is the recommended runtime,
 but `wf-clone-validation` is plain Nextflow, so you can run it directly on any Docker host with
 `-profile standard`. **The assembly is byte-identical either way** — verified: inside-Apptainer,
 host-Docker, and the EPI2ME reference all produce the same consensus md5 (`2b78d8db…7538c`). Inside
