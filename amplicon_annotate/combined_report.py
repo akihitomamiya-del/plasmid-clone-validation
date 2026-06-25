@@ -17,6 +17,7 @@ counter-intuitively named (an unpack in run_plannotate.py) -- do not swap them.
 """
 import argparse
 import json
+import re
 
 import pandas as pd
 from dominate.tags import h4, p
@@ -45,6 +46,22 @@ def _read_df(json_str):
         return pd.read_json(json_str)
     except ValueError:
         return pd.DataFrame()
+
+
+def _natural_key(text):
+    """Sort key that orders embedded numbers numerically (barcode2 < barcode10).
+
+    The plannotate JSON preserves de-novo task-completion order, which is
+    scrambled; sorting samples this way makes the report's "At a glance" table
+    and the "Annotated features" dropdown read barcode01, barcode02, ... .
+    """
+    return [int(t) if t.isdigit() else t.lower()
+            for t in re.split(r"(\d+)", str(text))]
+
+
+def _sorted_items(plannotate):
+    """plannotate.items() ordered naturally by sample name."""
+    return sorted(plannotate.items(), key=lambda kv: _natural_key(kv[0]))
 
 
 def _clean_table(annotations):
@@ -140,7 +157,7 @@ def linear_feature_map(table, seq_len):
 def summary_section(report, plannotate):
     """At-a-glance table: per sample consensus length + features found."""
     rows = []
-    for sample, item in plannotate.items():
+    for sample, item in _sorted_items(plannotate):
         ann = _read_df(item.get("annotations"))
         rows.append({
             "Sample": item.get("sample_name", sample),
@@ -171,7 +188,7 @@ def plannotate_section(report, plannotate):
             return
         tabs = Tabs()
         with tabs.add_dropdown_menu():
-            for sample, item in plannotate.items():
+            for sample, item in _sorted_items(plannotate):
                 table = _clean_table(_read_df(item.get("annotations")))
                 raw_df = _read_df(item.get("plot"))
                 seq_len = item.get("seq_len", 0)
