@@ -5,14 +5,15 @@ devcontainer images can be **built and validated**. This can't be done inside th
 (egress is GitHub/npm/Anthropic only; `CLAUDE.md` forbids validating `.devcontainer/claude-code/` changes
 there). Investigated + designed in-sandbox 2026-06-25.
 
-**Status — committed (`4abf464`) on `feat/claude-cli-version-refresh`; host- AND in-sandbox-validated
-2026-06-25; ready to republish `:claude-code`.** Implemented as Option A. Three hardening deviations from the
+**Status — committed (`4abf464`, doc `0fcc054`) on `feat/claude-cli-version-refresh` (pushed to `origin`);
+host- AND in-sandbox-validated **and published** 2026-06-25 (`:claude-code` + immutable `:claude-code-0.2.1`,
+index digest `c8ef399…f9af7`; runtime `:latest` untouched).** Implemented as Option A. Three hardening deviations from the
 snippets below were made during review and are reflected here: (1) the npm install also pins the
 `@anthropic-ai`-scoped registry (`--registry` alone does not constrain a scoped package); (2) the
 `claudeRefresh` postCreate is `[ -x ]`-guarded so a pulled image predating the script skips cleanly instead
 of failing create; (3) an offline-retry observation in §8.
 
-**Remaining = ONE step: build+push `:claude-code` (§8.1, manual — CI never builds it).** This branch's diff
+**DONE 2026-06-25 — published `:claude-code` + `:claude-code-0.2.1` (§8.1; manual `docker push`, CI never builds it).** This branch's diff
 touches only `.devcontainer/claude-code/`, `.devcontainer/claude-code-image/`, and docs — **nothing under
 `.devcontainer/build/`** — so the runtime image (`:latest`) is byte-identical to what is already on GHCR and
 must **not** be rebuilt or republished. The single publish is the thin `:claude-code` sandbox layer, pushed
@@ -183,11 +184,12 @@ running sandbox the same day (this handoff's own agent session); results inline.
 - [x] CLI works end-to-end with the host token — **validated in-sandbox 2026-06-25**: this handoff was
       edited by Claude Code running inside the built sandbox (live agent session, `claude --version` →
       `2.1.191`, refreshed at create), confirming the long-lived token + the refreshed CLI work together.
-- [ ] **Pull config (manual republish) — the one open item; see §8.1:** build+push `:claude-code`, then
-      **re-pull** and confirm the `claude-code-image` config's `claudeRefresh` **runs** (not the `[ -x ]`
-      skip). CI never builds `:claude-code`.
+- [x] **Pull config (manual republish) — DONE 2026-06-25; see §8.1:** pushed `:claude-code` + `:claude-code-0.2.1`,
+      then re-pulled and confirmed `/usr/local/bin/install-claude.sh` is present and **executable** (`-rwxr-xr-x`)
+      in the published image, so the `claude-code-image` config's `[ -x ]` guard passes and `claudeRefresh`
+      **runs** (not the skip). CI never builds `:claude-code`.
 
-## 8.1 Ship it — republish `:claude-code` (the one remaining step)
+## 8.1 Ship it — republish `:claude-code` (DONE 2026-06-25)
 
 Do this on a **networked host with Docker**, from a checkout of this branch (push it to `origin` first, or
 merge to `main`). **Not from the sandbox** — its egress firewall blocks the registry, and there is no Docker
@@ -204,10 +206,12 @@ docker build -f .devcontainer/claude-code/Dockerfile \
   -t ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code .
 docker push ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code
 
-# 3. (optional) pin an immutable version tag too, mirroring the runtime's :0.2.0
+# 3. mint a fresh immutable tag from the SAME image. NOTE: :claude-code-0.2.0 was already published from an
+#    OLDER build (no install-claude.sh); rather than MOVE that "immutable" tag (orphaning its digest and
+#    breaking reproducibility for anyone pinned to it), bump to :claude-code-0.2.1 and leave 0.2.0 as history.
 docker tag  ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code \
-            ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code-0.2.0
-docker push ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code-0.2.0
+            ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code-0.2.1
+docker push ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code-0.2.1
 ```
 
 **Why push at all, given the live CLI self-refreshes?** Until this one push lands, the `claude-code-image`
