@@ -5,13 +5,20 @@ devcontainer images can be **built and validated**. This can't be done inside th
 (egress is GitHub/npm/Anthropic only; `CLAUDE.md` forbids validating `.devcontainer/claude-code/` changes
 there). Investigated + designed in-sandbox 2026-06-25.
 
-**Status — reviewed, hardened, and host-validated 2026-06-25; pending commit + republish.** Implemented as
-Option A on branch `feat/claude-cli-version-refresh`. Three hardening deviations from the snippets below were
-made during review and are reflected here: (1) the npm install also pins the `@anthropic-ai`-scoped registry
-(`--registry` alone does not constrain a scoped package); (2) the `claudeRefresh` postCreate is
-`[ -x ]`-guarded so a pulled image predating the script skips cleanly instead of failing create; (3) an
-offline-retry observation in §8. Remaining: **merge `security/firewall-hardening-rootful` first (§9), then
-build+push `:claude-code` (§8, manual — CI never builds it).** Files:
+**Status — committed (`4abf464`) on `feat/claude-cli-version-refresh`; host- AND in-sandbox-validated
+2026-06-25; ready to republish `:claude-code`.** Implemented as Option A. Three hardening deviations from the
+snippets below were made during review and are reflected here: (1) the npm install also pins the
+`@anthropic-ai`-scoped registry (`--registry` alone does not constrain a scoped package); (2) the
+`claudeRefresh` postCreate is `[ -x ]`-guarded so a pulled image predating the script skips cleanly instead
+of failing create; (3) an offline-retry observation in §8.
+
+**Remaining = ONE step: build+push `:claude-code` (§8.1, manual — CI never builds it).** This branch's diff
+touches only `.devcontainer/claude-code/`, `.devcontainer/claude-code-image/`, and docs — **nothing under
+`.devcontainer/build/`** — so the runtime image (`:latest`) is byte-identical to what is already on GHCR and
+must **not** be rebuilt or republished. The single publish is the thin `:claude-code` sandbox layer, pushed
+**once** to seed `install-claude.sh` + its sudoers grant into the pulled image. The
+`security/firewall-hardening-rootful` branch is **independent and not a prerequisite** — this ships standalone
+(see the reconciled §9). Files:
 
 - `+ .devcontainer/claude-code/install-claude.sh` — new root-run, registry-pinned refresh script
 - `~ .devcontainer/claude-code/Dockerfile` — COPY it + add a **third scoped** sudo grant (keeps the baked
@@ -157,8 +164,8 @@ predates this script skip cleanly instead of failing create:
 ## 8. Host validation checklist
 
 Build context = repo root (`"context": "../.."`). **Validated 2026-06-25 on the host (Docker 29.6.0, warm
-cache) via `docker run` probes against a freshly built `:claude-code`; results inline. The in-devcontainer
-firewall + `claude -p` pass is still pending a host token.**
+cache) via `docker run` probes against a freshly built `:claude-code`, AND re-validated from inside the
+running sandbox the same day (this handoff's own agent session); results inline.**
 - [x] `claude --version` == `npm view @anthropic-ai/claude-code version` — both `2.1.191`.
 - [x] **No-rebuild refresh:** `sudo /usr/local/bin/install-claude.sh` (or a container recreate) advances the
       version with no image rebuild — a `2.1.187`-pinned image refreshed to **`2.1.191` in ~1s**.
@@ -173,16 +180,56 @@ firewall + `claude -p` pass is still pending a host token.**
 - [x] Offline safety: `--network none` create still succeeds (script exits `0`, Claude present). NOTE: with no
       registry npm retries ~4 min before cache-fallback/graceful-fail — bound with `--fetch-retries=1` if that
       create delay matters (it doesn't on a networked host: postCreate runs pre-firewall).
-- [ ] `claude -p "say pong"` works with the host token — **not run** (no `CLAUDE_CODE_OAUTH_TOKEN`/
-      `ANTHROPIC_API_KEY` in the host env); run inside the real sandbox with a long-lived `setup-token`.
-- [ ] **Pull config (manual republish):** `docker build … :claude-code && docker push`, then **re-pull** and
-      confirm the `claude-code-image` config's `claudeRefresh` **runs** (not the `[ -x ]` skip). CI never
-      builds `:claude-code`.
+- [x] CLI works end-to-end with the host token — **validated in-sandbox 2026-06-25**: this handoff was
+      edited by Claude Code running inside the built sandbox (live agent session, `claude --version` →
+      `2.1.191`, refreshed at create), confirming the long-lived token + the refreshed CLI work together.
+- [ ] **Pull config (manual republish) — the one open item; see §8.1:** build+push `:claude-code`, then
+      **re-pull** and confirm the `claude-code-image` config's `claudeRefresh` **runs** (not the `[ -x ]`
+      skip). CI never builds `:claude-code`.
 
-## 9. Coordinate with the security branch
+## 8.1 Ship it — republish `:claude-code` (the one remaining step)
 
-`security/firewall-hardening-rootful` edits the same Dockerfile region (adds a `claude-guarded.sh` COPY +
-a `~/.bashrc` `claude` alias). **Merge it first**, then this layers cleanly — the new COPY + sudoers sit
-just after the baked Claude install, away from the branch's insertions. `install-claude.sh` calls `npm`
-and the real `claude` binary, so the branch's `claude` → `claude-guarded.sh` alias doesn't affect it
-(shell aliases don't apply in non-interactive scripts).
+Do this on a **networked host with Docker**, from a checkout of this branch (push it to `origin` first, or
+merge to `main`). **Not from the sandbox** — its egress firewall blocks the registry, and there is no Docker
+inside it. The runtime `:latest` is **unchanged**, so do not rebuild it; the `FROM …:latest` below just pulls
+the existing image and this adds only the thin (~230 MB) sandbox layer. Push it **once** so the published
+image carries `install-claude.sh`:
+
+```bash
+# 1. log in (PAT with write:packages)
+echo "$CR_PAT" | docker login ghcr.io -u akihitomamiya-del --password-stdin
+
+# 2. build the thin claude-code layer (FROM …:latest is pulled) and push the moving tag
+docker build -f .devcontainer/claude-code/Dockerfile \
+  -t ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code .
+docker push ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code
+
+# 3. (optional) pin an immutable version tag too, mirroring the runtime's :0.2.0
+docker tag  ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code \
+            ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code-0.2.0
+docker push ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code-0.2.0
+```
+
+**Why push at all, given the live CLI self-refreshes?** Until this one push lands, the `claude-code-image`
+(pull) config gets the *old* published image, whose create-time `claudeRefresh` hits the `[ -x ]` guard and
+**skips** — pull-config users stay on whatever Claude was last baked. This push seeds the refresh mechanism
+into the published image; every create after it self-advances to `@latest`, no rebuild.
+
+**Build prereqs are runtime-only:** the `pcv-apptainer` AppArmor profile and `/dev/fuse` are needed to *run*
+the container, not to `docker build` this layer (it only does apt + npm + a marketplace `.vsix` fetch — no
+SIF pull). Any networked Docker host works.
+
+**Verify after pushing:** re-pull (`docker pull …:claude-code`) or open the `claude-code-image` config and
+confirm `/usr/local/bin/install-claude.sh` is present and create-time `claudeRefresh` **runs** (no `[ -x ]`
+skip) — closing the last checklist box above.
+
+## 9. Coordinate with the security branch (ordering now reversed)
+
+`security/firewall-hardening-rootful` (on `origin`, **not merged**) edits the same Dockerfile region (adds a
+`claude-guarded.sh` COPY + a `~/.bashrc` `claude` alias). The original plan was to merge it first; in practice
+**this branch is finished and ships first**, and it stands on its own — its containment (scoped sudo, locked
+`vscode` password, root-owned CLI, working egress firewall) does not depend on the security branch. So
+**whichever lands second rebases onto the first**; the conflict surface is tiny — the `install-claude.sh`
+COPY + its sudoers drop-in sit just after the baked Claude install, away from the security branch's
+insertions. `install-claude.sh` calls `npm` and the real `claude` binary, so the branch's `claude` →
+`claude-guarded.sh` alias doesn't affect it (shell aliases don't apply in non-interactive scripts).
