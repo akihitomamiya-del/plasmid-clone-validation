@@ -5,6 +5,14 @@ IFS=$'\n\t'       # Stricter word splitting
 # 1. Extract Docker DNS info BEFORE any flushing
 DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
 
+# FAIL-CLOSED: arm the trap BEFORE we relax the default policies to ACCEPT, so that ANY exit from
+# here on — a failure during the flush below, or the REQUIRED GitHub-meta fetch / domain resolution
+# that can `exit 1` on a transient DNS/WAN blip under `set -e` — leaves the default policies at DROP
+# instead of ACCEPT. A half-built firewall thus fails CLOSED, not open. FORWARD is included for
+# symmetry with the success path. Harmless on success: the script already ends at INPUT/FORWARD/OUTPUT
+# DROP plus the allowlist ACCEPT rules, so re-asserting DROP here is a no-op.
+trap 'iptables -P OUTPUT DROP; iptables -P INPUT DROP; iptables -P FORWARD DROP' EXIT
+
 # Reset default policies to ACCEPT so a retry after a failed run
 # (which may have left DROP policies) can still reach the network.
 iptables -P INPUT ACCEPT
@@ -31,14 +39,24 @@ else
 fi
 
 # First allow DNS and localhost before any restrictions
-# Allow outbound DNS
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+# Allow outbound DNS — pinned to the container's ACTUAL configured resolver(s), read from
+# /etc/resolv.conf. That is the Docker embedded resolver 127.0.0.11 on a user-defined network, or the
+# host-provided nameserver on the default bridge / slirp4netns. Pinning to the real resolver(s) —
+# rather than allowing udp/53 to ANY host — still blocks DNS tunnelling to an arbitrary external
+# resolver, but stays correct regardless of the container's network mode (a hardcoded 127.0.0.11
+# silently breaks all DNS, and so the whole firewall, on a default-bridge network). TCP/53 is allowed
+# too for truncated/large answers. IPv6/malformed nameservers are skipped — this is an iptables-v4 set.
+while read -r _ns; do
+    case "$_ns" in ""|*[!0-9.]*) continue ;; esac
+    iptables -A OUTPUT -p udp -d "$_ns" --dport 53 -j ACCEPT
+    iptables -A OUTPUT -p tcp -d "$_ns" --dport 53 -j ACCEPT
+done < <(awk '/^[[:space:]]*nameserver/ {print $2}' /etc/resolv.conf)
 # Allow inbound DNS responses
 iptables -A INPUT -p udp --sport 53 -j ACCEPT
-# Allow outbound SSH
-iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
-# Allow inbound SSH responses
-iptables -A INPUT -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
+# NOTE: blanket outbound SSH (tcp/22 to ANY host) intentionally REMOVED — it was an exfil/C2 path.
+# Git-over-SSH to GitHub still works: GitHub's ranges live in the allowed-domains ipset, which the
+# rule near the end permits on all ports. If you ever need SSH to one specific host, add a scoped
+# '-d <ip> --dport 22' rule rather than opening tcp/22 to everywhere.
 # Allow localhost
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT

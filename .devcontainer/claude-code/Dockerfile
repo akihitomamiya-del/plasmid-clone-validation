@@ -43,6 +43,11 @@ RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/start-firewall.sh /u
     echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh, /usr/local/bin/start-firewall.sh" > /etc/sudoers.d/vscode-firewall && \
     chmod 0440 /etc/sudoers.d/vscode-firewall
 
+# --- Launch gate: refuse to start Claude unless the firewall is confirmed up (defense-in-depth) ---
+# Pairs with init-firewall.sh's fail-closed trap; aliased to `claude` in vscode's ~/.bashrc below.
+COPY .devcontainer/claude-code/claude-guarded.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/claude-guarded.sh
+
 # --- uid-portability helper + sudo lockdown ---
 # /opt/{nextflow,sif-cache} are baked + owned by the build vscode (uid 1000). When the host
 # dev-uid != 1000, updateRemoteUserUID remaps vscode at runtime but does NOT chown outside
@@ -91,4 +96,5 @@ USER vscode
 ENV SHELL=/bin/bash EDITOR=nano
 # Wire the fail-open firewall banner into the (bash) shell — WITHOUT this the
 # "running WITHOUT network restrictions" warning never fires (silent fail-open).
-RUN echo '[ -f /usr/local/bin/firewall-warning.sh ] && . /usr/local/bin/firewall-warning.sh' >> /home/vscode/.bashrc
+RUN echo '[ -f /usr/local/bin/firewall-warning.sh ] && . /usr/local/bin/firewall-warning.sh' >> /home/vscode/.bashrc \
+    && echo "alias claude='/usr/local/bin/claude-guarded.sh'" >> /home/vscode/.bashrc
