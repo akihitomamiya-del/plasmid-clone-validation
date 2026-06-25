@@ -35,13 +35,32 @@ runs non-root** (keep it that way — see the invariant below):
   the warning banner is wired into `~/.bashrc`.
 - **AppArmor `pcv-apptainer (enforce)`** denies sensitive `/proc`,`/sys` even though Apptainer opens userns.
 
-**Scope — what this contains, and what it does NOT.** The firewall blocks network exfil/C2 to
-non-allowlisted hosts. It does **not** protect the host filesystem: the workspace is bind-mounted
-**read-write**, so a prompt-injected agent can edit host files — `.git/hooks`, the host-run
-`setup-host-apparmor.sh` (executed `sudo` on the host), `devcontainer.json` (next rebuild), the firewall
-*source* — and can write the API token to disk. Pair the firewall with a **Claude-Code command policy**
-(deny/ask rules + a `PreToolUse` hook for `sudo` / `rm -rf` / docker prunes / `git push` / …) and review
-agent diffs before you rebuild, commit, or run host `sudo`.
+**Scope — what this contains, and what it does NOT.** The firewall blocks outbound exfil/C2 to
+non-allowlisted *internet* hosts. It does **not** cover:
+- **The host filesystem.** The workspace is bind-mounted **read-write**, so a prompt-injected agent can
+  edit host files — `.git/hooks`, the host-run `setup-host-apparmor.sh` (executed `sudo` on the host),
+  `devcontainer.json` (next rebuild), the firewall *source* — and can write the API token to disk.
+- **Your repo, via `git push`.** GitHub is allowlisted and `git` is present, so the agent can push commits
+  to your repo; they then re-enter the host on the next `pull`. Protect with branch rules + (optionally) a
+  `git push` `ask` rule, below.
+- **Pipeline outputs.** `runs/` and `NXF_HOME` (`/opt/nextflow`) are agent-writable, so don't trust
+  unreviewed results. (The baked **SIF cache is NOT** agent-writable — the offline workflow images can't be
+  swapped.)
+- **The local Docker subnet — but NOT your physical LAN, in the shipped config.** The `HOST_NETWORK` rule
+  in `init-firewall.sh` allows the container's default-route **/24**, which under the **bridge** networking
+  this devcontainer uses (no `--network=host` in `runArgs`) is the *Docker bridge* subnet — the host gateway
+  plus any sibling containers, **not** your lab LAN / sequencer (a different subnet, which the final
+  `OUTPUT … REJECT` drops). ⚠ This holds only in bridge mode: if you ever add `--network=host`, that same
+  /24 rule becomes your **real LAN** and the agent could reach lab machines — don't. To also bar sibling
+  containers, narrow the rule from `$HOST_NETWORK` to the gateway `$HOST_IP/32`.
+
+**No command policy ships — by design.** Containment here is *structural*, not a command blocklist: the
+contained agent has no internet off the allowlist, can't escape to the host, and **can't `sudo`** (the base
+image's blanket sudo is stripped; only three scoped, argument-less scripts are sudo-able). Destructive
+*local* actions (`rm`, `git push`, …) are deliberately left to you — you run the agent and review what it
+does. If you want extra gating, add your own `settings.json` rules; prefer an **`ask`** rule (it still
+prompts at action time under `--dangerously-skip-permissions`) over a hard `deny`, so it catches the rare
+high-impact case — e.g. `git push`, the one real exfil path — without blocking the times you *do* want it.
 
 **Invariant — keep the agent non-root.** The firewall is un-removable because `vscode` has no `NET_ADMIN`
 and cannot `iptables -F` (only root, via the two scoped sudo scripts, applies it). Under **rootful** Docker

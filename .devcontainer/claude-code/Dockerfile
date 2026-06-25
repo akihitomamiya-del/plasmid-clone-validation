@@ -43,8 +43,10 @@ RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/start-firewall.sh /u
     echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh, /usr/local/bin/start-firewall.sh" > /etc/sudoers.d/vscode-firewall && \
     chmod 0440 /etc/sudoers.d/vscode-firewall
 
-# --- Launch gate: refuse to start Claude unless the firewall is confirmed up (defense-in-depth) ---
-# Pairs with init-firewall.sh's fail-closed trap; aliased to `claude` in vscode's ~/.bashrc below.
+# --- Launch gate: refuse to start Claude unless the firewall is confirmed up ---
+# An interactive-shell CONVENIENCE guard (aliased to `claude` in vscode's ~/.bashrc below), NOT the
+# enforcing boundary — the fail-closed trap in init-firewall.sh + the sudo-lockdown are. Bypassable by
+# non-interactive / absolute-path calls by design; it just stops a launch after a visibly-failed firewall.
 COPY .devcontainer/claude-code/claude-guarded.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/claude-guarded.sh
 
