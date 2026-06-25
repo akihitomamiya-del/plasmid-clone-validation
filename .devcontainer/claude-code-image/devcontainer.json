@@ -57,8 +57,14 @@
 
   // Live Preview installs from the baked .vsix in the PRE-firewall window (postCreate precedes
   // postStart). Non-fatal; logs to /tmp/live-preview-install.log.
+  // claudeRefresh: refresh the (baked, possibly older) Claude CLI to @latest as root via the scoped
+  // sudo grant — so even this PREBUILT pull image tracks latest at create (no local rebuild). The
+  // [ -x ] guard skips cleanly on an older pull predating this script: the published :claude-code image
+  // must be rebuilt+pushed ONCE to carry install-claude.sh + its sudoers grant, after which every create
+  // self-refreshes. Best-effort; keeps the baked fallback on failure. See docs/claude_cli_version_handoff.md.
   "postCreateCommand": {
-    "livePreview": "bash /usr/local/bin/install-live-preview.sh"
+    "livePreview": "bash /usr/local/bin/install-live-preview.sh",
+    "claudeRefresh": "if [ -x /usr/local/bin/install-claude.sh ]; then sudo /usr/local/bin/install-claude.sh; fi"
   },
 
   // postStartCommand entries run in PARALLEL via scoped-NOPASSWD sudo (blanket sudo is removed in

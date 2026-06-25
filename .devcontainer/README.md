@@ -22,11 +22,14 @@ AppArmor profile (host prereq below).
 ## Claude yolo-mode containment (the security model)
 The sandbox runs Claude with `--dangerously-skip-permissions`. The **egress firewall is the only guardrail**,
 so it must be un-removable by the agent:
-- **No blanket sudo.** The base image's `vscode ALL=(root) NOPASSWD:ALL` is removed; only two scoped,
-  root-owned, argument-less scripts are sudo-able: the firewall (re-apply only) and the `/opt/nextflow`
-  ownership helper. The agent can't `iptables -F`.
+- **No blanket sudo.** The base image's `vscode ALL=(root) NOPASSWD:ALL` is removed; only three scoped,
+  root-owned, argument-less scripts are sudo-able: the firewall (re-apply only), the `/opt/nextflow`
+  ownership helper, and the Claude-CLI refresh (`install-claude.sh`, a root-owned `npm i -g` — Claude stays
+  root-owned). The agent can't `iptables -F`.
 - **Claude installed as root** (global prefix root-owned) — the agent can't modify/replace its own CLI or
-  `npm i -g` anything. (We deliberately do **not** use a vscode-writable npm prefix.)
+  `npm i -g` anything. (We deliberately do **not** use a vscode-writable npm prefix.) It is kept at `@latest`
+  only via the scoped, root-owned `install-claude.sh` refresh (no rebuild needed), so the binary stays
+  immutable to the agent.
 - **Fail-open hardened** — `start-firewall.sh` unlinks a pre-planted `/tmp/firewall-status` before writing it;
   the warning banner is wired into `~/.bashrc`.
 - **AppArmor `pcv-apptainer (enforce)`** denies sensitive `/proc`,`/sys` even though Apptainer opens userns.
@@ -51,6 +54,9 @@ docker build -f .devcontainer/build/Dockerfile \
 Then the `claude-code` + default configs resolve their `FROM`/`image` from the local tag. Per-user
 `${devcontainerId}` volumes isolate Claude creds/history, so multiple users on one host don't collide. A
 Claude bump rebuilds only the thin `claude-code` layer (~230 MB) — the runtime base/SIFs are untouched.
+(Day-to-day you rarely need this: `install-claude.sh` refreshes the live CLI to `@latest` with no rebuild —
+at container-create and on demand. A *warm* rebuild keeps the cached baked install, so it does **not**
+advance the version; the refresh or a `--no-cache` rebuild does. See `../docs/claude_cli_version_handoff.md`.)
 ```bash
 # inside the sandbox, smoke test:
 nextflow info && apptainer --version && seqkit version && claude --version
@@ -63,7 +69,10 @@ The sandbox image is published too, so you can skip the local build: pick the **
 or `docker pull ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code`. Same firewalled yolo sandbox,
 with node + Claude CLI + the amplicon/clone-val pipelines baked in. Set `CLAUDE_CODE_OAUTH_TOKEN` (or
 `ANTHROPIC_API_KEY`) in your **host** env first — `claude /login` can't reach claude.ai through the firewall.
-After a Claude bump, rebuild + republish the thin layer:
+The live CLI self-refreshes at create (`install-claude.sh`, no rebuild). Rebuild + republish the thin layer
+only to advance the **baked fallback** — and do it **once** after adding the refresh so the published
+`:claude-code` carries `install-claude.sh` + its sudoers grant (the pull config's `claudeRefresh` skips
+cleanly until then):
 ```bash
 docker build -f .devcontainer/claude-code/Dockerfile \
   -t ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code . \

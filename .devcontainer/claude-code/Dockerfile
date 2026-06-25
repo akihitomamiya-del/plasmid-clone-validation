@@ -80,12 +80,27 @@ RUN chmod +x /usr/local/bin/install-live-preview.sh
 # Root-owned global install so the CONTAINED yolo agent (vscode, running --dangerously-skip-permissions)
 # CANNOT modify its own Claude binary, replace it, or `npm i -g` other global packages — it has no sudo
 # for npm, and the global prefix is root-owned. (A vscode-writable npm prefix would hand the agent exactly
-# that capability; we don't want it here.) Intentionally @latest (decision 2026-06-21); Claude updates by
-# REBUILDING this thin layer, NOT via in-container self-update — keeping the agent's tooling immutable is
-# part of the containment. This is also the only frequently-changing layer, so rebuilding it never touches
-# the runtime base/SIFs.
+# that capability; we don't want it here.) Intentionally @latest (decision 2026-06-21). This baked install
+# is the OFFLINE FALLBACK; the live version is advanced WITHOUT an image rebuild by the scoped-sudo refresh
+# added just below (install-claude.sh — postCreate + on-demand). That refresh runs AS ROOT into this same
+# root-owned prefix, so it is NOT agent "self-update": the agent still can't modify or replace its own CLI,
+# and tooling immutability stays part of the containment. This is also the only frequently-changing layer,
+# so a rebuild never touches the runtime base/SIFs.
 ARG CLAUDE_CODE_VERSION=latest
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+
+# --- On-the-fly refresh — keep the baked Claude above as an OFFLINE FALLBACK, and add a THIRD
+# SCOPED sudo grant so the latest Claude can be (re)installed AS ROOT without an image rebuild:
+# automatically at container-create (postCreateCommand "claudeRefresh", pre-firewall) and on demand
+# (`sudo /usr/local/bin/install-claude.sh`). Scoped + root-owned + argument-less ⇒ preserves the
+# no-blanket-sudo containment (the agent still can't `sudo iptables -F`), and Claude stays root-owned
+# (the agent can't replace its own CLI). The script pins the npm registry and runs from a root-owned
+# cwd so it can't be redirected. This matches Anthropic's reference posture (scoped sudo only); full
+# rationale + the scoped-vs-blanket comparison: docs/claude_cli_version_handoff.md.
+COPY .devcontainer/claude-code/install-claude.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/install-claude.sh \
+    && echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/install-claude.sh" > /etc/sudoers.d/vscode-claude-refresh \
+    && chmod 0440 /etc/sudoers.d/vscode-claude-refresh
 
 USER vscode
 ENV SHELL=/bin/bash EDITOR=nano

@@ -64,8 +64,13 @@
   // declarative customizations.vscode.extensions route both fail in this sandbox; instead
   // install-live-preview.sh installs the .vsix baked into the image (Dockerfile) via the
   // headless code-server CLI and verifies. Non-fatal; logs to /tmp/live-preview-install.log.
+  // claudeRefresh: pull the latest Claude CLI as root (scoped sudo) in the same pre-firewall window,
+  // so the CLI tracks @latest without an image rebuild while staying root-owned/immutable to the
+  // agent. The [ -x ] guard is shared with the pull config (here install-claude.sh is always baked
+  // in). Best-effort; keeps the baked fallback on failure. See docs/claude_cli_version_handoff.md.
   "postCreateCommand": {
-    "livePreview": "bash /usr/local/bin/install-live-preview.sh"
+    "livePreview": "bash /usr/local/bin/install-live-preview.sh",
+    "claudeRefresh": "if [ -x /usr/local/bin/install-claude.sh ]; then sudo /usr/local/bin/install-claude.sh; fi"
   },
 
   // postStartCommand entries run in PARALLEL; both use scoped-NOPASSWD sudo (the runtime base's

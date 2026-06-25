@@ -124,7 +124,9 @@ don't make them recall a flag:
 - **seqkit `-Q`** is the Nanopore error-probability mean Q (the same metric the workflow uses) — correct
   for read filtering; it is NOT the arithmetic Phred mean.
 - **Claude yolo mode** runs as the non-root `vscode` user, but **Claude is installed as root** (global prefix
-  root-owned) so the contained agent can't modify/replace its own CLI or `npm i -g`. It needs a token in the
+  root-owned) so the contained agent can't modify/replace its own CLI or `npm i -g` (the one sanctioned
+  update is the scoped, root-owned `install-claude.sh` refresh — still root-owned, so the binary stays
+  immutable to the agent). It needs a token in the
   host env (`CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY`); `claude /login` won't work (firewall blocks
   claude.ai). The firewall is the guardrail — confirm `/tmp/firewall-status` is `ok` before relying on it.
   Two non-obvious requirements (both silently break auth):
@@ -135,8 +137,13 @@ don't make them recall a flag:
   in hours and refresh via claude.ai, which the firewall blocks → the token dies and can't renew
   in-container. `setup-token` is long-lived and used directly as a bearer (no refresh needed).
 - **Claude CLI is intentionally `@latest`, NOT pinned** (decision 2026-06-21) — it lives only in the thin
-  `claude-code` layer, so a Claude bump rebuilds ~230 MB and never disturbs the runtime base/SIFs. Don't pin
-  `CLAUDE_CODE_VERSION`.
+  `claude-code` layer (a rebuild is ~230 MB and never disturbs the runtime base/SIFs). Don't pin
+  `CLAUDE_CODE_VERSION`. The live CLI is kept current **without an image rebuild** by `install-claude.sh`
+  (a third scoped-sudo, root-owned `npm i -g` refresh): it runs at container-create (postCreate
+  `claudeRefresh`, pre-firewall) and on demand (`sudo /usr/local/bin/install-claude.sh`), and
+  `registry.npmjs.org` is firewall-allowlisted so it works post-firewall too. The baked install is the
+  **offline fallback** — a *warm* image rebuild keeps that cached/stale copy (it does NOT advance the
+  version; the refresh or a `--no-cache` rebuild does). See `docs/claude_cli_version_handoff.md`.
 
 ## Conventions & guardrails
 - Shell scripts use `set -euo pipefail`, live at the repo root, and are reusable/parameterized.
