@@ -1,10 +1,13 @@
 #!/bin/bash
 # claude-guarded.sh — refuse to launch the yolo agent unless the egress firewall is confirmed up.
 #
-# Belt-and-suspenders to init-firewall.sh's fail-closed EXIT trap: a failed firewall already leaves
-# egress DROPped, but we ALSO refuse to start Claude so nobody runs --dangerously-skip-permissions
-# while unprotected (and nobody has to notice a shell banner). The claude-code Dockerfile aliases
-# `claude` to this script in vscode's ~/.bashrc.
+# SCOPE: this is an INTERACTIVE-SHELL CONVENIENCE guard, not the enforcing boundary. It is aliased to
+# `claude` in vscode's ~/.bashrc, so it only fires for interactive bash; a non-interactive `bash -c
+# claude`, an absolute-path call, or a Claude subprocess bypasses it BY DESIGN. The ENFORCING controls
+# are init-firewall.sh's fail-closed EXIT trap (a failed firewall leaves egress DROPped) plus the
+# sudo-lockdown (the agent has no NET_ADMIN and can't flush iptables). This just stops a human/agent
+# from launching --dangerously-skip-permissions after a VISIBLY failed firewall without noticing the
+# banner.
 set -euo pipefail
 
 if [ "$(cat /tmp/firewall-status 2>/dev/null || true)" != ok ]; then
@@ -13,6 +16,12 @@ if [ "$(cat /tmp/firewall-status 2>/dev/null || true)" != ok ]; then
     exit 1
 fi
 
-# In this non-interactive script the `claude` shell alias does not apply, so command -v resolves the
-# real npm-global CLI; fall back to the conventional NodeSource path if PATH is unusual.
-exec "$(command -v claude || echo /usr/bin/claude)" "$@"
+# Resolve the real CLI. Aliases do NOT expand in this non-interactive script, so `command -v claude`
+# finds the npm-global binary, not this guard. Hard-fail rather than exec a guessed path, so a future
+# install-location change surfaces loudly instead of silently exec'ing nothing.
+_claude="$(command -v claude || true)"
+if [ ! -x "$_claude" ]; then
+    echo "ERROR: could not find the 'claude' CLI on PATH (looked via 'command -v claude')." >&2
+    exit 127
+fi
+exec "$_claude" "$@"

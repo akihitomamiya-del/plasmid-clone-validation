@@ -11,7 +11,7 @@ DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
 # instead of ACCEPT. A half-built firewall thus fails CLOSED, not open. FORWARD is included for
 # symmetry with the success path. Harmless on success: the script already ends at INPUT/FORWARD/OUTPUT
 # DROP plus the allowlist ACCEPT rules, so re-asserting DROP here is a no-op.
-trap 'iptables -P OUTPUT DROP; iptables -P INPUT DROP; iptables -P FORWARD DROP' EXIT
+trap 'iptables -P OUTPUT DROP || true; iptables -P INPUT DROP || true; iptables -P FORWARD DROP || true' EXIT
 
 # Reset default policies to ACCEPT so a retry after a failed run
 # (which may have left DROP policies) can still reach the network.
@@ -46,17 +46,34 @@ fi
 # resolver, but stays correct regardless of the container's network mode (a hardcoded 127.0.0.11
 # silently breaks all DNS, and so the whole firewall, on a default-bridge network). TCP/53 is allowed
 # too for truncated/large answers. IPv6/malformed nameservers are skipped — this is an iptables-v4 set.
+#
+# Two caveats this does NOT close: (a) on a user-defined bridge the resolver is 127.0.0.11, whose
+# packets are DNAT'd by the restored DOCKER_OUTPUT nat rules and egress on `lo`, so they are actually
+# carried by the `-o lo -j ACCEPT` rule below — the pin is then redundant-but-harmless (it IS
+# load-bearing on the default bridge, where the resolver is a real external IP); (b) pinning stops the
+# agent reaching an ARBITRARY resolver, but data can still be tunnelled THROUGH the allowed resolver —
+# an unavoidable limit of permitting name resolution at all. A resolv.conf with no usable IPv4
+# nameserver yields zero DNS rules → the required resolution below aborts → the fail-closed trap leaves
+# egress DROPped (fail CLOSED, never open); we warn so that case is diagnosable rather than silent.
+_dns_pinned=0
 while read -r _ns; do
     case "$_ns" in ""|*[!0-9.]*) continue ;; esac
     iptables -A OUTPUT -p udp -d "$_ns" --dport 53 -j ACCEPT
     iptables -A OUTPUT -p tcp -d "$_ns" --dport 53 -j ACCEPT
+    _dns_pinned=$((_dns_pinned + 1))
 done < <(awk '/^[[:space:]]*nameserver/ {print $2}' /etc/resolv.conf)
+if [ "$_dns_pinned" -eq 0 ]; then
+    echo "WARNING: no usable IPv4 nameserver in /etc/resolv.conf — DNS will fail and the firewall will fail CLOSED" >&2
+fi
 # Allow inbound DNS responses
 iptables -A INPUT -p udp --sport 53 -j ACCEPT
 # NOTE: blanket outbound SSH (tcp/22 to ANY host) intentionally REMOVED — it was an exfil/C2 path.
-# Git-over-SSH to GitHub still works: GitHub's ranges live in the allowed-domains ipset, which the
-# rule near the end permits on all ports. If you ever need SSH to one specific host, add a scoped
-# '-d <ip> --dport 22' rule rather than opening tcp/22 to everywhere.
+# Git-over-HTTPS to GitHub is unaffected and is the GUARANTEED path here. Git-over-SSH to GitHub *also*
+# works AS LONG AS ssh.github.com resolves into GitHub's published meta ranges (.web/.api/.git), which
+# populate the allowed-domains ipset and the rule near the end permits on all ports — true at the time
+# of writing, but GitHub does not contract meta as an SSH allowlist. So if an `ssh://git@github.com`
+# push ever gets REJECTed (note: that is fail-CLOSED, not a hole), switch that remote to HTTPS or add a
+# scoped '-d <ip> --dport 22' rule. Don't reopen tcp/22 to everywhere.
 # Allow localhost
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT

@@ -127,9 +127,13 @@ don't make them recall a flag:
   root-owned) so the contained agent can't modify/replace its own CLI or `npm i -g`. It needs a token in the
   host env (`CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY`); `claude /login` won't work (firewall blocks
   claude.ai). The firewall is the **egress** guardrail — it does NOT protect the host filesystem (the
-  workspace bind is writable to the host; pair it with a Claude-Code command policy for `sudo`/`rm -rf`/docker
-  prunes/`git push`), and it is un-removable only while the agent is **non-root** (keep `remoteUser` non-root,
-  never `root`). Confirm `/tmp/firewall-status` is `ok` before relying on it.
+  workspace bind is writable to the host, and GitHub egress + `git` let the agent `git push` to your repo),
+  and it is un-removable only while the agent is **non-root** (keep `remoteUser` non-root, never `root`).
+  **No command policy ships — by design** (containment is structural: no off-allowlist internet, no host
+  escape, and the agent can't `sudo`); destructive local actions like `rm`/`git push` are left to you (add
+  your own `settings.json` `ask` rule if you want to gate `git push`). The `HOST_NETWORK` /24 rule reaches
+  the Docker bridge (host + sibling containers), NOT the lab LAN — unless you run `--network=host` (don't).
+  Confirm `/tmp/firewall-status` is `ok` before relying on it.
   Two non-obvious requirements (both silently break auth):
   (1) **`~/.claude` must be `vscode`-owned.** The config volume mounts there; if the image doesn't
   pre-create+chown `/home/vscode/.claude` the named volume comes up `root`-owned and the CLI can't
