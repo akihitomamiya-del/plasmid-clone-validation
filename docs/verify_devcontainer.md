@@ -50,6 +50,27 @@ cat /proc/self/attr/current                    # expect: pcv-apptainer (enforce)
 head -c 16 /proc/kallsyms >/dev/null 2>&1 && echo "kallsyms READABLE (stale/broad profile — reload it)" || echo "kallsyms denied (hardened profile active)"
 ```
 
+The firewall **hardening** (fail-closed init, a pinned resolver, no blanket SSH, a launch gate, a
+sudo-lockdown) adds these — **`claude-code` config only**:
+
+```bash
+# (e) DNS is PINNED to the configured resolver (resolution works; not open to arbitrary resolvers)
+getent hosts api.github.com >/dev/null && echo "DNS resolves (good)" || echo "DNS broken (check the resolv.conf pin)"
+
+# (f) Launch gate — `claude` is aliased to the guard, which refuses to start unless firewall-status==ok
+type claude | grep -q claude-guarded && echo "launch gate wired (good)" || echo "launch gate MISSING (check ~/.bashrc)"
+
+# (g) Sudo-lockdown — the agent can re-APPLY but NOT flush the firewall, and has no blanket sudo
+sudo -n -l 2>/dev/null | grep -qE 'init-firewall|start-firewall' && echo "scoped firewall sudo (good)" || echo "scoped sudo missing (check)"
+sudo -n iptables -F 2>/dev/null && echo "iptables -F ALLOWED (BAD)" || echo "iptables -F denied (good)"
+```
+
+**(host)** Confirm the raw ruleset reflects the hardening (the in-container `vscode` is denied `iptables`):
+```bash
+docker exec -u root <container> iptables -S OUTPUT | grep -E 'dport 53|dport 22|REJECT'
+# expect: a `-d <resolver-ip>/32 ... --dport 53 ACCEPT` pin, NO `--dport 22` rule, a final REJECT
+```
+
 ## 2. The runtime is present — **any config**
 
 All three configs `FROM` the runtime image, so these are present everywhere — **except the last line
@@ -121,6 +142,7 @@ Scope: **any** = all three configs; **claude-code** = the yolo-sandbox config on
 | Check | Applies to | Pass |
 |---|---|---|
 | Firewall | claude-code | `/tmp/firewall-status` = `ok`; `example.com` blocked, `api.github.com` reachable |
+| Firewall hardening | claude-code | DNS resolves (pinned resolver); `claude` aliased to the launch guard; `sudo iptables -F` **denied**; (host) `iptables -S OUTPUT` shows the `:53` pin, **no** `:22`, final REJECT |
 | AppArmor | any | `/proc/self/attr/current` = `pcv-apptainer (enforce)`; `/proc/kallsyms` read **denied** |
 | Runtime | any | apptainer 1.3.x · nextflow **24.10.9** · seqkit · java 17 (· `claude` in claude-code) — all report a version |
 | Rootless Apptainer | any | `apptainer exec …wf-common….img` prints `rootless apptainer OK` as `vscode` |
