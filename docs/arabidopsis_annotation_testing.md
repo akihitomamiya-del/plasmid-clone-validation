@@ -184,4 +184,6 @@ clone repo → (one-time) sudo bash .devcontainer/setup-host-apparmor.sh → Reo
 - **Container won't start (apparmor)** → run the one-time `setup-host-apparmor.sh` (host prereq,
   pre-existing — not specific to this feature).
 
-See also: `docs/arabidopsis_annotation_plan.md` (design + how it works), `docs/amplicon_annotate.md`.
+See also: `docs/arabidopsis_annotation_plan.md` (design + how it works; §9 = plasmids via `CIRCULAR`),
+`docs/amplicon_annotate.md`, and `docs/reference_validation.md` (check a consensus against an intended
+`.gbk`/`.fasta`).

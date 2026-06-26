@@ -93,6 +93,12 @@ front and writes a `linear` GenBank. The patch is minimal and threads one `force
 `run_plannotate → per_assembly → create_gbk(get_gbk(is_linear=True))`; default (no flag) behaviour is
 unchanged, so it can be upstreamed.
 
+**Circular plasmids reuse the same lever.** `annotate.sh` honours an opt-in `CIRCULAR=1` that simply
+**omits** `--linear`, restoring pLannotate's native circular (origin-spanning) annotation + a `circular`
+GenBank — this is how the plasmid pipeline annotates against the Arabidopsis DB
+(`clone_validate.sh`, see [`arabidopsis_annotation_plan.md`](arabidopsis_annotation_plan.md) §9).
+Default (`CIRCULAR` unset) keeps `--linear`, so the amplicon path here is byte-for-byte unchanged.
+
 ## The two feature maps (linear track + pLannotate map)
 
 Each annotation section shows **two complementary views**:

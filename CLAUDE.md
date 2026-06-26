@@ -28,6 +28,10 @@ BLAST annotation** of that consensus + an offline HTML report — `amplicon_vali
   `amplicon_validate.sh` + `amplicon_annotate/`; example reads in `examples/amplicon/raw/`, correctness
   target in `examples/amplicon/reference_run_wf-amplicon/` (de-identified; 2 amplicons, ~2,156 & ~3,283 bp).
   Both pipelines share the layout `examples/<pipeline>/{raw/, reference_run_*/}`.
+- **Annotation add-ons:** `docs/arabidopsis_annotation_plan.md` (custom *A. thaliana* AGI/gene/function DB —
+  amplicons **and** plasmids via `CIRCULAR`; §9), `docs/arabidopsis_annotation_testing.md` (host-side test
+  runbook), `docs/reference_validation.md` (`validate_against_reference.sh` — flag consensus-vs-reference
+  mutations: subs/indels/truncations + which feature each lands in).
 - `examples/plasmid/reference_run_canu/` — EPI2ME **canu** reference output = the build's correctness target
   (expected: **1 contig, 5,652 bp, "Completed successfully"**; that run used `approx_size=5000`).
 - `README.md` — quickstart + **"Before you build"** host prerequisites/secrets + the **PI amplicon
@@ -99,7 +103,16 @@ don't make them recall a flag:
   are **gated** — unset ⇒ output byte-identical to stock. The DB is **bind-mounted** (no SIF rebuild); the real
   config is the runtime-generated `plannotate.yaml` in `run_plannotate.py:make_yaml`, NOT the SIF's
   `databases.yml`. Build the DB **outside the firewall** (`build_arabidopsis_db.sh`; Ensembl Plants pep is
-  egress-blocked inside). Full runbook + the design rationale: `docs/arabidopsis_annotation_plan.md`.
+  egress-blocked inside — it now auto-fetches a version-matched diamond 2.1.15 if none is on PATH). Full
+  runbook + design rationale: `docs/arabidopsis_annotation_plan.md`. **Now baked into the published runtime
+  image** at build time (`ENV ARAB_DB=/opt/pcv/arabidopsis_db`), so it's on by default — `env -u ARAB_DB`
+  for the stock baseline. **Plasmids:** `CIRCULAR=1 annotate.sh` (omits `--linear` → circular GenBank) + an
+  `ARAB_DB`-gated post-step in `clone_validate.sh` annotate the plasmid assembly the same way (§9).
+- **Reference check (`validate_against_reference.sh`, 2026-06-26):** the complementary "does my clone match
+  the intended construct?" step — `minimap2 -a --cs -x asm10` (wf-amplicon SIF) + the stdlib
+  `amplicon_annotate/variant_parser.py` flag substitutions/indels/truncations vs a user `.gbk`/`.fasta` and
+  tag which annotated feature each lands in → `variants_vs_reference.csv` + `variant_summary.txt`. Apptainer-
+  only (no-ops on a Docker-only host); `variant_parser.py --selftest` runs host-side. See `docs/reference_validation.md`.
 - **Combined report (Stage 5):** when the wf-amplicon report is passed as `annotate.sh` arg 5
   (`amplicon_validate.sh` does this automatically), `merge_report.py` splices the annotation section into it
   → one self-contained `amplicon-report-with-annotation.html` = wf-amplicon QC + annotation. It is **pure

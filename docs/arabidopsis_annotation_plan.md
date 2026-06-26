@@ -4,11 +4,13 @@ Add the **AGI locus code, gene symbol, and functional description** to every amp
 consensus by annotating it against a custom *Arabidopsis thaliana* protein database,
 on top of pLannotate's stock DBs.
 
-> **One-line status:** the pipeline code is done, gated behind `ARAB_DB`, and **validated
-> offline end-to-end**. The only step that must run **outside** the firewalled
-> devcontainer is building the DB (the proteome download is blocked inside). Build it
-> once with `build_arabidopsis_db.sh`, copy the result to the pipeline host, and run with
-> `ARAB_DB=…` set.
+> **One-line status:** done, gated behind `ARAB_DB`, **validated offline end-to-end on a real
+> host** (a full `amplicon_validate.sh` raw→deliverables run against the real TAIR10 proteome)
+> and **baked into the runtime image** — `ARAB_DB` defaults to `/opt/pcv/arabidopsis_db`, so the
+> published image annotates with Arabidopsis by default. Also extended to **plasmids** (§9). The
+> only step that must run **outside** the firewalled devcontainer is building the DB (the proteome
+> download is blocked inside); for the published image CI bakes it. `build_arabidopsis_db.sh` now
+> auto-fetches a version-matched diamond, so a bare networked host needs nothing pre-installed.
 
 ---
 
@@ -86,10 +88,12 @@ arabidopsis_db/arabidopsis.dmnd   # diamond protein DB (defline 1st token = AGI 
 arabidopsis_db/arabidopsis.csv    # header: sseqid,Feature,Description = AGI, symbol, function
 ```
 
-`diamond` is required; if it isn't on `PATH` the script will use the plannotate SIF's diamond
-when `PLAN_SIF=/path/to/ontresearch-plannotate-*.img` (or one under
-`$NXF_SINGULARITY_CACHEDIR` / `/opt/sif-cache`) is available — this also version-matches the
-SIF's diamond (2.1.x). Self-checks (`diamond dbinfo`, CSV head) run automatically.
+`diamond` is located in this order: (1) a host `diamond` on `PATH`; (2) else the plannotate
+SIF's diamond when `PLAN_SIF=/path/to/ontresearch-plannotate-*.img` (or one under
+`$NXF_SINGULARITY_CACHEDIR` / `/opt/sif-cache`) is available; (3) else a **version-matched static
+binary the script auto-fetches** (`DIAMOND_VERSION`, default `2.1.15` to match the SIF so the
+baked `.dmnd` stays readable there). So on a bare networked host with neither diamond nor a SIF
+it just works. Self-checks (`diamond dbinfo`, CSV head) run automatically.
 
 ### Step 2 — move the DB to the pipeline host
 
@@ -162,10 +166,13 @@ Key facts behind the design (verified live in the SIF):
 
 ## 7. Tuning & options
 
-- **Make it the permanent default (no env var):** bake `arabidopsis.dmnd` + `arabidopsis.csv`
-  into the runtime image (e.g. `COPY` them to `/opt/pcv/arabidopsis_db` in
-  `.devcontainer/build/Dockerfile`) and default `ARAB_DB` to that path in `amplicon_validate.sh`.
-  Still offline; no plannotate-SIF rebuild needed (the DB is bind-mounted).
+- **Permanent default (no env var) — DONE.** `.devcontainer/build/Dockerfile` builds the DB at
+  image-build time into `/opt/pcv/arabidopsis_db` (a host diamond installed for that one layer)
+  and sets `ENV ARAB_DB=/opt/pcv/arabidopsis_db`, so the published image annotates with
+  Arabidopsis by default — still offline; the DB is bind-mounted, no plannotate-SIF rebuild.
+  Override per-run with `ARAB_DB=…`; for the stock-only baseline run with `env -u ARAB_DB`.
+  Release pin: `--build-arg ARAB_ENSEMBL_RELEASE=63` (keep it equal to whatever release you
+  validated with `build_arabidopsis_db.sh`).
 - **Sensitivity (`--id`)**: the block uses `--id 40` (permissive — catches indel-degraded ONT
   ORFs). Raise toward `50–60` to reduce paralog hits; lower to catch more-divergent homologs.
 - **Frameshift-aware** (helps the largest PPR genes, where ONT indels break frame): add
@@ -190,3 +197,34 @@ Key facts behind the design (verified live in the SIF):
 - These are same-organism, full-length cloned CDSs, so real hits are high-identity; `--id 40` is
   a safety margin, not a necessity. Spurious paralog hits, if any, are the main thing to watch
   when you first inspect a real run.
+
+---
+
+## 9. Plasmids too (`CIRCULAR` mode)
+
+The same Arabidopsis DB now annotates **plasmid** assemblies, not just amplicons. The plasmid
+pipeline (`clone_validate.sh` → wf-clone-validation) runs pLannotate *inside* the Nextflow
+workflow with stock DBs only, so Arabidopsis is added as a **post-step** (the locked
+"wrapper, not a fork" pattern), mirroring the amplicon path:
+
+- `amplicon_annotate/annotate.sh` gained an opt-in **`CIRCULAR=1`** that omits `--linear`, so
+  `run_plannotate` does its native circular (origin-spanning) annotation and writes a **circular**
+  GenBank. Default (unset) keeps `--linear` ⇒ the amplicon path is byte-for-byte unchanged.
+- `clone_validate.sh` gained an **`ARAB_DB`-gated** (and Apptainer-gated) post-step that, after
+  the workflow, re-annotates the assembled `<out>/cloneval/*.final.fasta` with `CIRCULAR=1` into a
+  separate `<out>/annotation/` dir (no collision with the workflow's own `feature_table.txt`).
+  Complete **no-op when `ARAB_DB` is unset** — existing plasmid runs are unchanged.
+
+```bash
+ARAB_DB=/path/to/arabidopsis_db ./clone_validate.sh <raw_dir> <out_dir> auto
+#   -> <out_dir>/cloneval/      wf-clone-validation assembly + its own stock annotation
+#   -> <out_dir>/annotation/    Arabidopsis-aware: feature_table.txt (AGI), *.annotations.gbk, report
+```
+
+Validated: `CIRCULAR=1` on the example consensus yields a `circular` GenBank plus the AGI/gene
+annotation (`RPF3`/AT1G62930, `CRS1`/AT5G16180); the default path still passes `--linear`. The
+remaining maintainer check is a full plasmid raw→assembly→annotation run.
+
+> Related: to **check** an assembled clone against an intended sequence (rather than discover
+> features), see [`reference_validation.md`](reference_validation.md) — `validate_against_reference.sh`
+> flags substitutions / indels / truncations vs a user `.gbk`/`.fasta`.
