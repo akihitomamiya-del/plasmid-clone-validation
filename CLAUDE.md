@@ -121,6 +121,11 @@ don't make them recall a flag:
   automates this **per sample** via `clone_validate.sh <raw> <out> auto` (peak → window + per-sample
   `approx_size` through a generated sample sheet; outputs are named by alias `sampleNN`). Yield-weighted
   histogram robustly picks the full-length peak over short adapter/fragment junk.
+  - **Plasmid filter defaults loosened 2026-06-25 → window peak ±15% (`estimate_length_peak.sh` `WIDTH=pct:15`)
+    and min Q 15 (`clone_validate.sh` `MINQ` default).** Rationale: keep low-yield samples analyzable by
+    default — on the MT260625 ~17 kb plasmids the old peak ±10% / Q20 starved the thin barcodes (51–52 full-length
+    reads); ±15% / Q15 recovers ~2–3× the depth (→ 144–160 reads), all still full-length, with no loss on
+    high-yield samples. Override per run with args 4/5/6 (MANUAL) or `--width`/`--min-qual` on the peak finder.
 - **seqkit `-Q`** is the Nanopore error-probability mean Q (the same metric the workflow uses) — correct
   for read filtering; it is NOT the arithmetic Phred mean.
 - **Claude yolo mode** runs as the non-root `vscode` user, but **Claude is installed as root** (global prefix

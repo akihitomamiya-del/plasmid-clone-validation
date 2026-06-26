@@ -9,7 +9,7 @@
 #   * MANUAL  <approx_size> [min_len] [min_qual] [max_len]  -- one length window for all samples.
 #   * AUTO    approx_size = "auto"                           -- per-sample, data-driven (no
 #       hand-picked numbers): runs estimate_length_peak.sh on each barcode to find the
-#       full-length read-length peak, filters that barcode to peak +/-10% (+ min Q), and feeds
+#       full-length read-length peak, filters that barcode to peak +/-15% (+ min Q), and feeds
 #       each sample's peak as its own approx_size via a generated sample sheet.
 #
 # Assembler: defaults to **canu** -- validated as the robust choice for full-length plasmid reads;
@@ -25,7 +25,7 @@
 # A MANUAL-only approx_size envelope guard stops wf-clone-validation's own length bounds
 # (0.5-1.5x approx_size at fastcat; <=1.2x at the assembler) from silently re-clipping your window:
 # keep ceil(max_len/1.2) <= approx_size <= 2*min_len.  AUTO is always in-envelope (window = peak
-# +/-10%, approx_size = peak).
+# +/-15%, approx_size = peak).
 #
 # Usage:
 #   ./clone_validate.sh <raw_dir> <out_dir> <approx_size|auto> [min_len] [min_qual] [max_len]
@@ -51,7 +51,7 @@ usage() { awk 'NR==1{next} /^#/{sub(/^# ?/,"");print;next} {exit}' "$0"; }
 if [[ $# -lt 3 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; exit 0; fi
 
 RAW="$1"; OUT="$2"; APPROX="$3"
-MINLEN="${4:-5000}"; MINQ="${5:-20}"; MAXLEN="${6:-6000}"
+MINLEN="${4:-5000}"; MINQ="${5:-15}"; MAXLEN="${6:-6000}"
 # PROFILE: auto-pick singularity inside the Apptainer-only devcontainer, else standard (Docker host).
 if [[ -z "${PROFILE:-}" ]]; then
     if command -v apptainer >/dev/null 2>&1 && ! command -v docker >/dev/null 2>&1; then

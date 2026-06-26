@@ -26,7 +26,7 @@
 #   --floor BP      ignore reads < BP when locating the peak  (default 1000)
 #   --weight W      histogram weighting: yield | count        (default yield)
 #   --width METHOD  window rule around the peak:
-#                     pct:P   peak +/- P percent              (default pct:10)
+#                     pct:P   peak +/- P percent              (default pct:15)
 #                     fwhm    full width at half maximum (data-driven width)
 #                     valley  out to the density minima either side (clamped)
 #   --min-qual Q    also require mean read Q >= Q in the output (default 0 = off)
@@ -41,7 +41,7 @@
 #   PEAK_WINDOW <peak_bp> <lo_bp> <hi_bp>
 # so it can drive the rest of the repo, e.g.:
 #   read _ PEAK LO HI < <(./estimate_length_peak.sh reads.fastq.gz --report-only | tail -1)
-#   EXTRA_NF_ARGS="--assembly_tool canu" ./clone_validate.sh in out "$PEAK" "$LO" 20 "$HI"
+#   EXTRA_NF_ARGS="--assembly_tool canu" ./clone_validate.sh in out "$PEAK" "$LO" 15 "$HI"
 #
 # seqkit is used for length/quality so --min-qual matches wf-clone-validation's own
 # error-probability mean-Q (the same metric filter_nanopore_reads.sh uses).
@@ -51,7 +51,7 @@ set -euo pipefail
 usage() { awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"; }
 
 # ---- defaults ----
-BIN=50; SMOOTH=5; FLOOR=1000; WEIGHT=yield; WIDTH="pct:10"; MINQ=0
+BIN=50; SMOOTH=5; FLOOR=1000; WEIGHT=yield; WIDTH="pct:15"; MINQ=0
 OUT=""; REPORT_ONLY=0; J=8
 
 [[ $# -lt 1 || "${1:-}" == "-h" || "${1:-}" == "--help" ]] && { usage; exit 0; }
