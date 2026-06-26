@@ -159,6 +159,50 @@ fi
 if command -v nextflow >/dev/null 2>&1; then
     echo "+ ${NF_CMD[*]}"
     ( cd "$OUT" && "${NF_CMD[@]}" )
+
+    # --- optional: Arabidopsis-aware annotation of the assembled plasmid(s) (opt-in) ---
+    # A complete NO-OP unless ARAB_DB is set -> existing plasmid runs are unchanged. wf-clone-validation
+    # already runs stock-DB pLannotate; this post-step ADDS custom A. thaliana proteome hits (AGI locus +
+    # gene symbol + function) to each assembled plasmid consensus, mirroring the amplicon pipeline. Gated
+    # on Apptainer too (the annotation is Apptainer-only), like amplicon_validate.sh's `command -v
+    # apptainer` annotation gate. Runs annotate.sh with CIRCULAR=1 (plasmids are circular) into a SEPARATE
+    # $OUT/annotation dir, so it never collides with the workflow's own cloneval/feature_table.txt.
+    # See docs/arabidopsis_annotation_plan.md.
+    if [[ -n "${ARAB_DB:-}" ]]; then
+        if command -v apptainer >/dev/null 2>&1; then
+            echo
+            echo "== Arabidopsis annotation (pLannotate, circular) =="
+            # Gather every assembled per-sample consensus (wf-clone-validation writes one
+            # <alias>.final.fasta per successfully assembled sample under cloneval/) into one
+            # multi-record FASTA; annotate.sh re-splits it by record header (= alias).
+            ANNOT_FA="$OUT/annotation_input.fasta"; : > "$ANNOT_FA"; nfa=0
+            for fa in "$OUT/cloneval"/*.final.fasta; do
+                [[ -e "$fa" ]] || continue          # nullglob is on; guard is belt-and-suspenders
+                cat "$fa" >> "$ANNOT_FA"; nfa=$((nfa + 1))
+            done
+            if (( nfa > 0 )); then
+                echo "  annotating $nfa assembled plasmid consensus record(s) from $OUT/cloneval/"
+                if CIRCULAR=1 ARAB_DB="$ARAB_DB" \
+                       "$SCRIPT_DIR/amplicon_annotate/annotate.sh" "$ANNOT_FA" "$OUT/annotation"; then
+                    echo
+                    echo "  Arabidopsis-aware annotation -> $OUT/annotation/"
+                    echo "    feature table : $OUT/annotation/feature_table.txt"
+                    echo "    per-sample    : $OUT/annotation/<alias>.annotations.{gbk,bed}  (AGI folded into /label)"
+                    echo "    HTML report   : $OUT/annotation/amplicon-annotation-report.html"
+                else
+                    echo "WARNING: Arabidopsis annotation failed; wf-clone-validation outputs in $OUT/cloneval are intact." >&2
+                fi
+            else
+                rm -f "$ANNOT_FA"
+                echo "  NOTE: no assembled consensus (*.final.fasta) under $OUT/cloneval -- nothing to annotate."
+                echo "        (Check $OUT/cloneval/sample_status.txt for per-sample assembly status.)"
+            fi
+        else
+            echo
+            echo "  NOTE: ARAB_DB set, but Arabidopsis annotation needs Apptainer (skipped on this host)."
+            echo "        Run inside the Apptainer runtime image to add AGI locus + gene + function."
+        fi
+    fi
 else
     echo
     echo "nextflow not found here (expected inside the sandboxed devcontainer)."

@@ -11,6 +11,12 @@
 # Usage:
 #   annotate.sh <consensus.fasta> <out_dir> [params.json] [versions.txt] [wf_amplicon_report.html]
 #
+# Env:
+#   CIRCULAR=1     annotate as a CIRCULAR plasmid (OMIT --linear); default = linear amplicon.
+#                  Used by clone_validate.sh to annotate wf-clone-validation plasmid consensuses.
+#   ARAB_DB=<dir>  also diamond-blastx vs a custom A. thaliana proteome -> AGI + gene + function
+#                  (dir holding arabidopsis.dmnd + arabidopsis.csv; see below + the plan doc).
+#
 # Stage 3: split the multi-record FASTA -> one <record>.final.fasta per record,
 #          then run run_plannotate.py --linear (our patched copy) in the
 #          plannotate SIF against the bundled Default DBs (SnapGene/Swiss-Prot/
@@ -66,7 +72,15 @@ awk -v d="$WORK/assemblies" '
 ' "$CONSENSUS"
 n=$(ls -1 "$WORK/assemblies"/*.final.fasta 2>/dev/null | wc -l)
 (( n > 0 )) || { echo "ERROR: no FASTA records found in $CONSENSUS" >&2; exit 1; }
-echo "Stage 3: annotating $n consensus record(s) with pLannotate (linear)..."
+
+# Topology: by DEFAULT the input is LINEAR (amplicons / linear constructs) -> pass --linear so
+# plannotate skips the circular sequence-doubling and writes a linear GenBank. Set CIRCULAR=1 to
+# annotate a CIRCULAR plasmid instead: that OMITS --linear, so run_plannotate does its native
+# circular (origin-spanning) annotation + a circular GenBank. Default (CIRCULAR unset) keeps
+# --linear -> the amplicon path is byte-for-byte unchanged (same flag AND same log text).
+LINEAR_FLAG=(--linear); TOPO="linear"
+if [[ -n "${CIRCULAR:-}" ]]; then LINEAR_FLAG=(); TOPO="circular"; fi
+echo "Stage 3: annotating $n consensus record(s) with pLannotate ($TOPO)..."
 
 # --- 2) Stage 3: run_plannotate.py --linear in the plannotate SIF ---
 # Optional custom Arabidopsis thaliana protein DB. If $ARAB_DB names a directory
@@ -89,7 +103,7 @@ apptainer exec --containall --no-home --pwd "$WORK/out" \
   --env PYTHONPATH=/glue --env MPLCONFIGDIR="$WORK/.mpl" \
   --env XDG_CACHE_HOME="$WORK/.cache" \
   "$PLAN_SIF" python -m workflow_glue.run_plannotate \
-    --sequences "$WORK/assemblies" --database Default --linear
+    --sequences "$WORK/assemblies" --database Default ${LINEAR_FLAG[@]+"${LINEAR_FLAG[@]}"}
 
 [[ -f "$WORK/out/plannotate_report.json" ]] || { echo "ERROR: Stage 3 produced no plannotate_report.json" >&2; exit 1; }
 

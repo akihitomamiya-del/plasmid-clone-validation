@@ -28,6 +28,10 @@ runs/
 output/
 results/
 
+# Arabidopsis protein DB build artifacts (build_arabidopsis_db.sh output; generated, not committed)
+arabidopsis_db/
+arab_db/
+
 # OS / editor cruft
 .DS_Store
 *.swp
