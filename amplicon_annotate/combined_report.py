@@ -34,7 +34,7 @@ from workflow_glue.bokeh_plot import get_bokeh
 # Fill colour per annotation database (linear track).
 _DB_COLOURS = {
     "snapgene": "#4e79a7", "swissprot": "#59a14f", "fpbase": "#e15759",
-    "infernal": "#b07aa1", "rfam": "#b07aa1",
+    "infernal": "#b07aa1", "rfam": "#b07aa1", "arabidopsis": "#76b7b2",
 }
 
 
@@ -100,6 +100,9 @@ def linear_feature_map(table, seq_len):
             "identity": str(r.get("Identity", "")),
             "strand": "+" if sgn > 0 else "-",
             "desc": str(r.get("Description", ""))[:140],
+            # AGI locus / DB accession (present only when the Arabidopsis DB column
+            # 'Accession' was added by run_plannotate.clean_results; blank otherwise).
+            "accession": str(r.get("Accession", "")),
             "color": _DB_COLOURS.get(str(r.get("Database", "")).lower(), "#9c755f"),
         })
 
@@ -130,7 +133,7 @@ def linear_feature_map(table, seq_len):
 
     src = ColumnDataSource({k: [r[k] for r in rows] for k in (
         "lo", "hi", "mid", "top", "bottom", "label_y", "feature", "db",
-        "identity", "strand", "desc", "color")})
+        "identity", "strand", "desc", "accession", "color")})
 
     p_fig = figure(
         height=max(220, int((n_fwd + n_rev + 2) * 40)),
@@ -148,9 +151,15 @@ def linear_feature_map(table, seq_len):
     p_fig.add_layout(LabelSet(
         x="mid", y="label_y", text="feature", source=src,
         text_font_size="9pt", text_align="center", text_baseline="middle"))
-    p_fig.add_tools(HoverTool(renderers=[glyph], tooltips=[
-        ("feature", "@feature"), ("database", "@db"), ("identity", "@identity"),
-        ("strand", "@strand"), ("span", "@lo–@hi bp"), ("description", "@desc")]))
+    tooltips = [("feature", "@feature")]
+    # Only surface the AGI/accession line when at least one feature carries one
+    # (i.e. the Arabidopsis DB ran); keeps the default report's hover unchanged.
+    if any(r["accession"] for r in rows):
+        tooltips.append(("AGI/accession", "@accession"))
+    tooltips += [
+        ("database", "@db"), ("identity", "@identity"),
+        ("strand", "@strand"), ("span", "@lo–@hi bp"), ("description", "@desc")]
+    p_fig.add_tools(HoverTool(renderers=[glyph], tooltips=tooltips))
     return p_fig
 
 

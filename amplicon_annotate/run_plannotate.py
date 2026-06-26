@@ -57,6 +57,7 @@ def run_plannotate(fasta, force_linear=False):
 
 def clean_results(df):
     """Clean-up annotation dataframe for display."""
+    arab = bool(os.environ.get("PLANNOTATE_ARAB_DB"))
     rename = {
         'Feature': 'Feature',
         'db': 'Database',
@@ -73,7 +74,16 @@ def clean_results(df):
         'Description',
         'Start Location', 'End Location', 'Length',
         'Strand', 'qlen']
-    df = df.rename(columns=rename)[display_columns]
+    if arab:
+        # Restore the BLAST subject id as its own column -- the AGI locus
+        # (AT#G#####) for Arabidopsis hits, the accession for the stock DBs. Stock
+        # plannotate keeps sseqid; the vendored clean_results dropped it. Gated on
+        # Arabidopsis mode so default-run output schemas are byte-unchanged.
+        rename['sseqid'] = 'Accession'
+        display_columns.insert(1, 'Accession')
+    # Keep only the columns that exist (robust if sseqid is absent for a sample).
+    df = df.rename(columns=rename)
+    df = df[[c for c in display_columns if c in df.columns]]
     df['Plasmid length'] = df.iloc[0]['qlen']
     df = df.drop(columns='qlen')
     df[numeric_columns] = np.round(df[numeric_columns], 1).astype(str) + "%"
@@ -109,6 +119,18 @@ def create_gbk(sample_file, item, df, is_linear=False):
     """
     with pysam.FastxFile(sample_file) as fh:
         seq = next(fh).sequence
+    # In Arabidopsis mode, fold the AGI locus into the GenBank /label for features
+    # from the custom DB: get_gbk only writes Feature->/label + Type (it drops
+    # sseqid/Description), so without this the .gbk would carry the gene symbol but
+    # not the AGI. Result label e.g. "NAC001 (AT1G01010)". Operate on a copy so the
+    # raw df (reused for report['plot']) is untouched.
+    if os.environ.get("PLANNOTATE_ARAB_DB") and \
+            {'db', 'sseqid', 'Feature'} <= set(df.columns):
+        df = df.copy()
+        mask = df['db'].astype(str) == 'arabidopsis'
+        df.loc[mask, 'Feature'] = (
+            df.loc[mask, 'Feature'].astype(str)
+            + ' (' + df.loc[mask, 'sseqid'].astype(str) + ')')
     gbk = get_gbk(df, seq, is_linear=is_linear)
     gbk_filename = item + '.annotations.gbk'
     with open(gbk_filename, "w") as file:
@@ -218,6 +240,39 @@ swissprot:
   priority: 2
   version: Release 2021_03
         """.format(database)
+
+    # Optional custom Arabidopsis thaliana protein DB (diamond blastx). Enabled when
+    # annotate.sh was given $ARAB_DB and so bound the DB to /opt/arab_db and set
+    # $PLANNOTATE_ARAB_DB. Appended AFTER .format() so the block's literal text never
+    # collides with the template's {0} slot. priority 1 lets a genuine Arabidopsis hit
+    # outscore the generic Swiss-Prot / cross-species hit over the same span; --id 40
+    # is permissive enough to still catch indel-degraded ONT ORFs. See
+    # docs/arabidopsis_annotation_plan.md.
+    arab_db = os.environ.get("PLANNOTATE_ARAB_DB")
+    if arab_db:
+        plannotate_yaml += """
+arabidopsis:
+  details:
+    compressed: false
+    default_type: CDS
+    location: {db}/arabidopsis.csv
+  location: {db}
+  method: diamond
+  parameters:
+  - -k 0
+  - --min-orf 1
+  - --matrix BLOSUM90
+  - --gapopen 10
+  - --gapextend 1
+  - --algo ctg
+  - --id 40
+  - --max-hsps 10
+  - --culling-overlap 200
+  - --seed-cut .001
+  - --comp-based-stats 0
+  priority: 1
+  version: TAIR10/Araport11 (custom)
+""".format(db=arab_db)
 
     with open("plannotate.yaml", "w") as text_file:
         text_file.write(plannotate_yaml)

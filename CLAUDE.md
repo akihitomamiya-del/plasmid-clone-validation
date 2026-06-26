@@ -92,6 +92,14 @@ don't make them recall a flag:
   --linear` (plannotate SIF) then `combined_report.py` (wf-clone-validation SIF) via `apptainer exec` — all
   BLAST DBs are baked. The report has a **linear feature track** (`linear_feature_map()`) plus pLannotate's
   native circular map. The Apptainer stages are skipped on a Docker-only host (no Apptainer).
+- **Arabidopsis mode (`ARAB_DB`, opt-in, 2026-06-25):** set `ARAB_DB=<dir with arabidopsis.dmnd +
+  arabidopsis.csv>` on `amplicon_validate.sh`/`annotate.sh` to also `diamond blastx` each consensus against a
+  custom *A. thaliana* proteome → adds an **`Accession` (AGI locus)** column + `arabidopsis` features carrying
+  gene symbol (`Feature`) + function (`Description`), and folds the AGI into the `.gbk` `/label`. All changes
+  are **gated** — unset ⇒ output byte-identical to stock. The DB is **bind-mounted** (no SIF rebuild); the real
+  config is the runtime-generated `plannotate.yaml` in `run_plannotate.py:make_yaml`, NOT the SIF's
+  `databases.yml`. Build the DB **outside the firewall** (`build_arabidopsis_db.sh`; Ensembl Plants pep is
+  egress-blocked inside). Full runbook + the design rationale: `docs/arabidopsis_annotation_plan.md`.
 - **Combined report (Stage 5):** when the wf-amplicon report is passed as `annotate.sh` arg 5
   (`amplicon_validate.sh` does this automatically), `merge_report.py` splices the annotation section into it
   → one self-contained `amplicon-report-with-annotation.html` = wf-amplicon QC + annotation. It is **pure

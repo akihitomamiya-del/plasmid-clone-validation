@@ -118,10 +118,36 @@ RUN nextflow pull epi2me-labs/wf-amplicon -r "${WF_AMPLICON_VERSION}" \
 # clone_validate.sh / amplicon_validate.sh resolve their siblings (the filter/peak scripts) via
 # SCRIPT_DIR, so all of them live together; /opt/pcv on PATH makes `clone_validate.sh …` and
 # `amplicon_validate.sh …` work without the workspace bind-mount.
-COPY filter_nanopore_reads.sh estimate_length_peak.sh clone_validate.sh amplicon_validate.sh amplicon_split.sh /opt/pcv/
+COPY filter_nanopore_reads.sh estimate_length_peak.sh clone_validate.sh amplicon_validate.sh amplicon_split.sh build_arabidopsis_db.sh /opt/pcv/
 COPY amplicon_annotate /opt/pcv/amplicon_annotate
 RUN chmod +x /opt/pcv/*.sh /opt/pcv/amplicon_annotate/*.sh && chown -R vscode:vscode /opt/pcv
 ENV PATH="/opt/pcv:${PATH}"
+
+# --- Custom Arabidopsis thaliana protein DB for amplicon annotation (BUILD-TIME, network OPEN) ---
+# Fetch the Ensembl Plants A. thaliana proteome and build the diamond DB that amplicon_annotate uses
+# to add the AGI locus + gene symbol + function to each consensus. `apptainer exec` does NOT work at
+# build time (no /dev/fuse), so the SIF's diamond is unreachable here -- install a matching diamond
+# binary (the plannotate SIF ships diamond 2.1.15, so the baked .dmnd must be readable by it) for
+# this layer only and remove it after. The DB is bind-mounted at runtime (NOT baked into the SIF);
+# ENV ARAB_DB below makes the annotation use it by default. Lean: drop the proteome FASTA + the
+# diamond binary in the SAME layer. MUST run on a host that can reach Ensembl Plants. x86_64 only
+# (matches the amd64 SIFs). See docs/arabidopsis_annotation_plan.md.
+ARG ARAB_ENSEMBL_RELEASE=63
+ARG DIAMOND_VERSION=2.1.15
+RUN set -eux; \
+    wget -q -O /tmp/diamond.tar.gz \
+      "https://github.com/bbuchfink/diamond/releases/download/v${DIAMOND_VERSION}/diamond-linux64.tar.gz"; \
+    tar xzf /tmp/diamond.tar.gz -C /usr/local/bin diamond; diamond version; \
+    /opt/pcv/build_arabidopsis_db.sh /opt/pcv/arabidopsis_db --release "${ARAB_ENSEMBL_RELEASE}"; \
+    rm -f /opt/pcv/arabidopsis_db/_ensembl_pep.fa.gz \
+          /opt/pcv/arabidopsis_db/arabidopsis_proteins.faa \
+          /usr/local/bin/diamond /tmp/diamond.tar.gz; \
+    chown -R vscode:vscode /opt/pcv/arabidopsis_db; \
+    ls -la /opt/pcv/arabidopsis_db
+# Make the amplicon annotation use the baked Arabidopsis DB by default. annotate.sh validates the dir
+# (arabidopsis.dmnd + arabidopsis.csv) and silently falls back to the stock DBs if it is absent, so
+# this is safe even for an image built without the step. Override per-run with ARAB_DB=… .
+ENV ARAB_DB=/opt/pcv/arabidopsis_db
 
 # NOTE: /opt/sif-cache is intentionally NOT chowned/chmod'd. `apptainer pull` already writes the SIFs
 # as root:root mode 0755 (world-readable+executable), so any runtime uid reads them — and a recursive

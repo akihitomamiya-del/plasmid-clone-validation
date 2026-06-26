@@ -69,8 +69,23 @@ n=$(ls -1 "$WORK/assemblies"/*.final.fasta 2>/dev/null | wc -l)
 echo "Stage 3: annotating $n consensus record(s) with pLannotate (linear)..."
 
 # --- 2) Stage 3: run_plannotate.py --linear in the plannotate SIF ---
+# Optional custom Arabidopsis thaliana protein DB. If $ARAB_DB names a directory
+# holding arabidopsis.dmnd + arabidopsis.csv (built offline; see
+# docs/arabidopsis_annotation_plan.md), bind it read-only to /opt/arab_db and signal
+# run_plannotate via $PLANNOTATE_ARAB_DB. Unset/invalid -> stock DBs only (unchanged).
+ARAB_BIND=()
+if [[ -n "${ARAB_DB:-}" ]]; then
+  if [[ -f "$ARAB_DB/arabidopsis.dmnd" && -f "$ARAB_DB/arabidopsis.csv" ]]; then
+    ARAB_ABS="$(cd "$ARAB_DB" && pwd)"
+    ARAB_BIND=(--bind "$ARAB_ABS":/opt/arab_db:ro --env PLANNOTATE_ARAB_DB=/opt/arab_db)
+    echo "  + Arabidopsis DB: $ARAB_ABS -> /opt/arab_db (diamond blastx; adds AGI + gene + function)"
+  else
+    echo "WARNING: ARAB_DB set ($ARAB_DB) but arabidopsis.dmnd/arabidopsis.csv not found there -- using stock DBs only." >&2
+  fi
+fi
 apptainer exec --containall --no-home --pwd "$WORK/out" \
   --bind "$WORK" --bind "$WORK/glue":/glue:ro \
+  ${ARAB_BIND[@]+"${ARAB_BIND[@]}"} \
   --env PYTHONPATH=/glue --env MPLCONFIGDIR="$WORK/.mpl" \
   --env XDG_CACHE_HOME="$WORK/.cache" \
   "$PLAN_SIF" python -m workflow_glue.run_plannotate \
