@@ -166,7 +166,10 @@ NCSV=$(( $(wc -l < "$CSV") - 1 ))
 echo "Proteins: $NPROT  (CSV rows: $NCSV)"
 (( NPROT > 0 )) || { echo "ERROR: normalisation produced no proteins -- check the source FASTA defline format." >&2; exit 1; }
 
-# --- 3) locate diamond (host, else a plannotate SIF for a version match) -------
+# --- 3) locate diamond (host -> plannotate SIF -> auto-fetched static binary) ---
+# DIAMOND_VERSION matches the plannotate SIF's diamond so the baked .dmnd is
+# readable by it (the SIF ships 2.1.15; a version-skewed DB fails to open there).
+DIAMOND_VERSION="${DIAMOND_VERSION:-2.1.15}"
 DIAMOND=()
 if command -v diamond >/dev/null 2>&1; then
     DIAMOND=(diamond)
@@ -177,9 +180,29 @@ else
         DIAMOND=(apptainer exec --bind "$OUT" "$SIF" diamond)
         echo "Using diamond from SIF: $(basename "$SIF")"
     else
-        echo "ERROR: 'diamond' not found and no plannotate SIF available." >&2
-        echo "       Install it (conda install -c bioconda diamond) or set PLAN_SIF=/path/to/plannotate.img" >&2
-        exit 1
+        # Neither host diamond nor a SIF: auto-fetch a version-matched static
+        # binary so the builder works on a bare networked host (x86_64 only).
+        BIN="$OUT/.diamond-${DIAMOND_VERSION}"
+        if [[ ! -x "$BIN" ]]; then
+            echo "diamond not found; fetching static v${DIAMOND_VERSION} ..."
+            URL="https://github.com/bbuchfink/diamond/releases/download/v${DIAMOND_VERSION}/diamond-linux64.tar.gz"
+            TGZ="$OUT/.diamond.tar.gz"
+            if command -v curl >/dev/null 2>&1; then curl -fSL --retry 3 -o "$TGZ" "$URL" || true
+            elif command -v wget >/dev/null 2>&1; then wget -O "$TGZ" "$URL" || true
+            else echo "ERROR: need curl or wget to auto-fetch diamond." >&2; exit 1; fi
+            if [[ -s "$TGZ" ]] && tar xzf "$TGZ" -C "$OUT" diamond 2>/dev/null; then
+                mv -f "$OUT/diamond" "$BIN"; chmod +x "$BIN"
+            fi
+            rm -f "$TGZ"
+        fi
+        if [[ -x "$BIN" ]]; then
+            DIAMOND=("$BIN"); echo "Using auto-fetched diamond: $BIN"
+        else
+            echo "ERROR: 'diamond' not found, no plannotate SIF, and auto-fetch failed." >&2
+            echo "       Install it (conda install -c bioconda diamond), set PLAN_SIF=/path/to/plannotate.img," >&2
+            echo "       or put a 'diamond' binary on PATH (https://github.com/bbuchfink/diamond/releases)." >&2
+            exit 1
+        fi
     fi
 fi
 
