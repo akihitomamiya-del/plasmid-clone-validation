@@ -64,8 +64,45 @@ carries all three fields in every defline:
 - **gene symbol** = `gene_symbol:` (`NAC001`; absent for un-named genes → we fall back to the AGI)
 - **function** = text after `description:` minus the trailing `[Source:…]`
 
-`gene_symbol`/`description` coverage is partial (curated genes only). To fill gaps with
-authoritative TAIR names, see the **TAIR-join fallback** in §7.
+`gene_symbol`/`description` coverage is partial (curated genes only). **The build now joins a
+gene-alias table by default** to broaden the displayed name (§3a) — Ensembl's single symbol is
+sparse and carries no synonyms.
+
+### 3a. Gene-alias join (broaden the displayed name)
+
+Ensembl's pep defline gives at most **one** symbol and **no synonyms**, and ~60% of loci have no
+symbol at all (they fall back to the bare AGI). `build_arabidopsis_db.sh` therefore joins an
+alias table so the name is broader:
+
+- **Fills a real symbol** for loci Ensembl leaves un-named **when the alias table offers a genuine
+  one** (e.g. `AT2G43120` → `PIRIN2`). Obsolete BAC/clone ids (any token with `.`/`_`, e.g.
+  `F10N7.90`) are **never** promoted to the label — a clean AGI reads better than a clone id — so
+  `Feature` is always a real symbol or the bare AGI (the AGI is in the `Accession` column either way).
+- **Folds extra synonyms into the Description**, not the symbol: `Feature` stays the single
+  primary symbol and the GenBank `/label` is unchanged (`PGR3 (AT4G31850)`), while the
+  Description becomes e.g. `synonyms: ANAC001, T25K16.1 - NAC domain containing protein 1` (capped
+  at 8, then `, ...`). Keeps labels short, surfaces alt-names (incl. clone ids) where they're read.
+- **Measured (release 63 + BioMart):** ~968 un-named loci gain a real symbol, ~20,617 descriptions
+  gain synonyms (un-named 17,098 → 16,130). BioMart mostly carries *clone-id* synonyms, so the
+  real-symbol count is modest by design; lab names (NUWA, LPE1) are TAIR/Araport-curated and are
+  **not in BioMart** — supply them via `--aliases` if you need them as primaries.
+
+Source (no SIF rebuild — the DB is bind-mounted):
+- `--aliases-source biomart` (**default**): Ensembl Plants BioMart `external_gene_name` +
+  `external_synonym` via the martservice REST (`athaliana_eg_gene`, no login). Best-effort — if
+  the download fails the build prints a warning and proceeds with symbol-or-AGI exactly as before.
+- `--aliases FILE`: a local TAIR/Araport-style tsv (`AGI <tab> symbol[/name] …`, multiple rows
+  per AGI; header auto-skipped) — builds fully offline. Overrides `--aliases-source`. Note TAIR
+  now needs a paid login, so this path is for a file you already hold.
+- `--aliases-source none`: disable the join (byte-identical to the pre-alias output).
+
+Alias selection: tokens are kept as synonyms only if short and space-free (`^[A-Za-z0-9][\w.+/-]{0,19}$`),
+so TAIR full-name phrases (which contain spaces) are ignored; case-insensitive de-dup. **Primary
+selection** = Ensembl symbol → first **non-clone** alias (no `.`/`_`) → the bare AGI; clone ids and
+the rest become synonyms. (NB the ~172 loci whose *Ensembl* symbol itself contains a `.`/`_`, e.g.
+snRNAs, keep that Ensembl symbol — we don't second-guess Ensembl's own name.) Validated on the real
+release-63 proteome + BioMart: `AT2G43120 → PIRIN2`, `AT4G32100` stays the AGI with `F10N7.90` demoted
+to a synonym, no alias-derived clone id ever appears as a `Feature`.
 
 ---
 
@@ -75,10 +112,12 @@ authoritative TAIR names, see the **TAIR-join fallback** in §7.
 
 ```bash
 # in a clone of this repo, on a host with internet + diamond (or apptainer + the plannotate SIF):
-./build_arabidopsis_db.sh arabidopsis_db            # downloads Ensembl release 63 by default
-#   --release 58       # use a specific Ensembl Plants release
-#   --source FILE.fa.gz # use an already-downloaded proteome (fully offline build)
-#   --keep-isoforms    # keep every splice isoform (default: one longest protein per gene)
+./build_arabidopsis_db.sh arabidopsis_db            # Ensembl release 63 + BioMart aliases (default)
+#   --release 58           # use a specific Ensembl Plants release
+#   --source FILE.fa.gz     # use an already-downloaded proteome (fully offline build)
+#   --keep-isoforms        # keep every splice isoform (default: one longest protein per gene)
+#   --aliases-source none  # skip the gene-alias join (symbol-or-AGI only)
+#   --aliases gene_aliases.txt  # join a local TAIR/Araport-style alias tsv instead of BioMart
 ```
 
 Produces:
@@ -197,6 +236,10 @@ Key facts behind the design (verified live in the SIF):
 - These are same-organism, full-length cloned CDSs, so real hits are high-identity; `--id 40` is
   a safety margin, not a necessity. Spurious paralog hits, if any, are the main thing to watch
   when you first inspect a real run.
+- The gene-alias join (§3a) is best-effort and **only changes the displayed name** (Feature symbol +
+  Description synonyms); it never affects which loci are *hit* (that's the diamond search). The
+  baked DB in the published image is **not** re-aliased until rebuilt outside the firewall — BioMart
+  is egress-blocked inside, same as the Ensembl proteome.
 
 ---
 

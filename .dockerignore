@@ -10,6 +10,15 @@ work/
 **/work/
 *.sif
 *.img
-*.fastq
-*.fastq.gz
+# Match data/artifacts at ANY depth, not just the context root: a bare `*.fastq.gz`
+# in .dockerignore does NOT match nested paths, so real-data dirs (e.g.
+# MT260625_*_fastq_pass/barcodeNN/*.fastq.gz) would otherwise ship in the build context.
+**/*.sif
+**/*.img
+**/*.fastq
+**/*.fastq.gz
+**/*.fq
+**/*.fq.gz
+**/*_fastq_pass/
 examples/
+arabidopsis_db/
