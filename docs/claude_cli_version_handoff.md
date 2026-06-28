@@ -5,6 +5,10 @@ devcontainer images can be **built and validated**. This can't be done inside th
 (egress is GitHub/npm/Anthropic only; `CLAUDE.md` forbids validating `.devcontainer/claude-code/` changes
 there). Investigated + designed in-sandbox 2026-06-25.
 
+> **Note (2026-06-27):** the `claude-code-image/` pull config referenced throughout this doc was folded into
+> the **top-level `.devcontainer/devcontainer.json`** — now the default config, which pulls `:claude-code`.
+> Read "the `claude-code-image` config" below as "the default top-level config." Republish: `docs/republish_prebuilt.md`.
+
 **Status — committed (`4abf464`, doc `0fcc054`) on `feat/claude-cli-version-refresh` (pushed to `origin`);
 host- AND in-sandbox-validated **and published** 2026-06-25 (`:claude-code` + immutable `:claude-code-0.2.1`,
 index digest `c8ef399…f9af7`; runtime `:latest` untouched).** Implemented as Option A. Three hardening deviations from the

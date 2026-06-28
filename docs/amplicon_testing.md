@@ -49,8 +49,9 @@ Pass criteria are summarized at the bottom.
   your own data, drop a `barcodeNN/*.fastq.gz` dir anywhere (subdir names **must** match `barcodeNN`, ≥2
   digits). (A data-free smoke test is also possible via wf-amplicon's bundled `test_data/` de-novo demo.)
 
-The four run-time security args used throughout mirror `.devcontainer/build/devcontainer.json` (the
-validated rootless-Apptainer recipe). Export them once to keep commands short:
+The four run-time security args used throughout are the validated rootless-Apptainer recipe — the same
+`--security-opt`s the devcontainer configs use (`.devcontainer/devcontainer.json`; the Claude sandbox also
+adds `--cap-add=NET_ADMIN/NET_RAW` for the firewall). Export them once to keep commands short:
 ```bash
 RUNARGS=(--security-opt seccomp=unconfined --security-opt apparmor=pcv-apptainer \
          --security-opt systempaths=unconfined --device /dev/fuse)
@@ -61,7 +62,7 @@ IMG=pcv-runtime:amplicon
 
 ## 1. Build the image
 
-From the repo root (build context = repo root, per `build/devcontainer.json`):
+From the repo root (build context = repo root, the `.` in the command below):
 ```bash
 docker build -f .devcontainer/build/Dockerfile -t "$IMG" .
 ```

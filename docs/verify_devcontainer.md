@@ -2,27 +2,28 @@
 
 Quick checks confirming the `plasmid-clone-validation` devcontainer is correctly built, sandboxed, and
 runs the pipeline. Open it first — VS Code **"Dev Containers: Reopen in Container"** — then run these in
-its integrated terminal (you are the non-root `vscode` user; the repo is your working directory).
+its integrated terminal (you are the non-root `vscode` user; the repo is your working directory). A
+**config** change (`devcontainer.json`) is itself tested from the **host**: **Rebuild**/Reopen applies the
+new config — you can't test a config edit from inside the already-built container.
 
-> **"Dev Containers: Reopen in Container" now offers THREE configs** (commit `187381b` split the old
-> single image — see [`../.devcontainer/README.md`](../.devcontainer/README.md), authoritative for the
-> internals):
+> **"Dev Containers: Reopen in Container" offers TWO configs** — both are the Claude-Code yolo sandbox
+> (the **default pulls** the prebuilt `:claude-code`; **`claude-code`** *builds* it locally). See
+> [`../.devcontainer/README.md`](../.devcontainer/README.md), authoritative for the internals:
 >
 > | Config (`devcontainer.json` location) | What it is | Has firewall? | Has Claude? |
 > |---|---|---|---|
-> | **default** (`.devcontainer/`) | run the pipeline straight from the published runtime image | no | no |
-> | **claude-code** (`.devcontainer/claude-code/`) | the yolo sandbox — runtime image + node + Claude CLI + egress firewall | **yes** | **yes** |
-> | **build** (`.devcontainer/build/`) | iterate the lean runtime image (base + Java + Nextflow + Apptainer + the 5 baked SIFs) | no | no |
+> | **default** (`.devcontainer/`) | the yolo sandbox, **pulled** prebuilt (`:claude-code`) | **yes** | **yes** |
+> | **claude-code** (`.devcontainer/claude-code/`) | the same yolo sandbox, **built locally** | **yes** | **yes** |
 >
 > **Which checks apply where:**
-> - **§1 (firewall)** and **§5 (yolo Claude)** apply **only to the `claude-code` config** — only it ships
->   the firewall + Claude CLI. Skip them in `default`/`build`.
-> - **§2–§4 (runtime · rootless Apptainer · the offline assembly)** apply to **any** config — all three
->   `FROM` the same runtime image, so Apptainer + the baked SIFs + the AppArmor profile are present
->   everywhere. (In `default`/`build`, omit the `claude --version` line of §2.)
+> - **Both configs are the Claude-Code sandbox** (default = pull, `claude-code` = local build), so **§1
+>   (firewall) and §5 (yolo Claude) apply to both** — both ship the firewall + Claude CLI.
+> - **§2–§4 (runtime · rootless Apptainer · the offline assembly)** apply to **both** configs — both
+>   `FROM` the same runtime image, so Apptainer + the baked SIFs + the AppArmor profile + the Claude CLI
+>   are present in both.
 
 > The one-time **host** setup (loading the `pcv-apptainer` AppArmor profile) is assumed done — it applies
-> to **all three** configs (each runs rootless Apptainer under `pcv-apptainer`). If the container failed
+> to **both** configs (each runs rootless Apptainer under `pcv-apptainer`). If the container failed
 > to *start* with `apparmor profile pcv-apptainer not found`, do
 > [`host_userns_prereq.md`](host_userns_prereq.md) on the host first, then reopen.
 
@@ -30,7 +31,7 @@ Pass criteria are summarized at the bottom.
 
 ---
 
-## 1. The sandbox is in effect — **`claude-code` config only**
+## 1. The sandbox is in effect — **both configs**
 
 (Checks (a)–(b) are the egress firewall; (c)–(d) confirm the AppArmor profile via the firewall-shipped
 container. The AppArmor confinement itself is present in every config — §3/§4 exercise it there too.)
@@ -51,7 +52,11 @@ head -c 16 /proc/kallsyms >/dev/null 2>&1 && echo "kallsyms READABLE (stale/broa
 ```
 
 The firewall **hardening** (fail-closed init, a pinned resolver, no blanket SSH, a launch gate, a
-sudo-lockdown) adds these — **`claude-code` config only**:
+sudo-lockdown) adds checks (e)–(g). ⚠️ **They require the *republished* `:claude-code`** — the
+currently-published image (what the **default** config pulls until you run
+[`republish_prebuilt.md`](republish_prebuilt.md)) is **pre-hardening**, so (e)–(g) and the host raw-rule
+check below pass only after that republish; the baseline firewall (a)–(b) is present either way. The
+local-build **`claude-code`** config gets the hardening as soon as you rebuild from `main`:
 
 ```bash
 # (e) DNS is PINNED to the configured resolver (resolution works; not open to arbitrary resolvers)
@@ -71,20 +76,19 @@ docker exec -u root <container> iptables -S OUTPUT | grep -E 'dport 53|dport 22|
 # expect: a `-d <resolver-ip>/32 ... --dport 53 ACCEPT` pin, NO `--dport 22` rule, a final REJECT
 ```
 
-## 2. The runtime is present — **any config**
+## 2. The runtime is present — **both configs**
 
-All three configs `FROM` the runtime image, so these are present everywhere — **except the last line
-(`claude`), which exists only in the `claude-code` config**:
+Both configs `FROM` the runtime image, so all of these — including `claude` — are present in both:
 
 ```bash
 apptainer --version          # apptainer version 1.3.x
 nextflow info | head -3      # Version: 24.10.9 ...
 seqkit version               # seqkit vX
 java -version 2>&1 | head -1 # openjdk 17 ...
-claude --version             # Claude Code CLI    — claude-code config only
+claude --version             # Claude Code CLI
 ```
 
-## 3. Rootless Apptainer works (the core fix) — **any config**
+## 3. Rootless Apptainer works (the core fix) — **both configs**
 
 ```bash
 id -un                                                          # vscode  (non-root)
@@ -92,9 +96,9 @@ apptainer exec /opt/sif-cache/ontresearch-wf-common-*.img echo "rootless apptain
 ```
 Success here is exactly what was blocked before the `pcv-apptainer` profile + `systempaths=unconfined`
 runArgs — no sudo, no `--privileged`, global userns sysctl untouched. The baked SIFs are `root:root`
-0755 (world-readable, deliberately **not** chowned), so `vscode` can `exec` them in any config.
+0755 (world-readable, deliberately **not** chowned), so `vscode` can `exec` them in either config.
 
-## 4. End-to-end: reproduce the canu reference, offline (~a few minutes) — **any config**
+## 4. End-to-end: reproduce the canu reference, offline (~a few minutes) — **both configs**
 
 ```bash
 EXTRA_NF_ARGS="--assembly_tool canu --assm_coverage 60" PROFILE=singularity \
@@ -137,20 +141,25 @@ claude.ai (blocked here), so they die mid-session and can't renew. A `401 Invali
 
 ## Pass criteria
 
-Scope: **any** = all three configs; **claude-code** = the yolo-sandbox config only.
+Both configs are the Claude-Code yolo sandbox (default = pull, `claude-code` = local build), so **every
+check applies to both** — the only caveat is that the **Firewall hardening** row needs the *republished*
+`:claude-code` (the default pulls the pre-hardening image until then; see
+[`republish_prebuilt.md`](republish_prebuilt.md)).
 
 | Check | Applies to | Pass |
 |---|---|---|
-| Firewall | claude-code | `/tmp/firewall-status` = `ok`; `example.com` blocked, `api.github.com` reachable |
-| Firewall hardening | claude-code | DNS resolves (pinned resolver); `claude` aliased to the launch guard; `sudo iptables -F` **denied**; (host) `iptables -S OUTPUT` shows the `:53` pin, **no** `:22`, final REJECT |
-| AppArmor | any | `/proc/self/attr/current` = `pcv-apptainer (enforce)`; `/proc/kallsyms` read **denied** |
-| Runtime | any | apptainer 1.3.x · nextflow **24.10.9** · seqkit · java 17 (· `claude` in claude-code) — all report a version |
-| Rootless Apptainer | any | `apptainer exec …wf-common….img` prints `rootless apptainer OK` as `vscode` |
-| Pipeline | any | `sample_status.txt` = `Completed successfully, 5652` (one contig, 5,652 bp); md5 `2b78d8db…7538c` |
-| Claude auth | claude-code | `~/.claude` is `vscode`-owned & writable; `claude -p "…"` round-trips (no `401`) |
-| Yolo | claude-code | `claude --dangerously-skip-permissions` starts **only** with firewall `ok` |
+| Firewall (baseline) | both | `/tmp/firewall-status` = `ok`; `example.com` blocked, `api.github.com` reachable |
+| Firewall **hardening** | both¹ | DNS resolves (pinned resolver); `claude` aliased to the launch guard; `sudo iptables -F` **denied**; (host) `iptables -S OUTPUT` shows the `:53` pin, **no** `:22`, final REJECT |
+| AppArmor | both | `/proc/self/attr/current` = `pcv-apptainer (enforce)`; `/proc/kallsyms` read **denied** |
+| Runtime | both | apptainer 1.3.x · nextflow **24.10.9** · seqkit · java 17 · `claude` — all report a version |
+| Rootless Apptainer | both | `apptainer exec …wf-common….img` prints `rootless apptainer OK` as `vscode` |
+| Pipeline | both | `sample_status.txt` = `Completed successfully, 5652` (one contig, 5,652 bp); md5 `2b78d8db…7538c` |
+| Claude auth | both | `~/.claude` is `vscode`-owned & writable; `claude -p "…"` round-trips (no `401`) |
+| Yolo | both | `claude --dangerously-skip-permissions` starts **only** with firewall `ok` |
 
-In the **claude-code** config, if §1 fails-open (firewall not `ok`), capture the container log — Command
+¹ Needs the **republished** `:claude-code` (the default pulls the pre-hardening image until then).
+
+In either config, if §1 fails-open (firewall not `ok`), capture the container log — Command
 Palette → **"Dev Containers: Show Container Log"** — the firewall is the safety interlock for yolo mode.
 Background: [`setup_and_plan.md`](archive/setup_and_plan.md) ·
 [`host_userns_prereq.md`](host_userns_prereq.md) · [`decision_log.md`](decision_log.md) ·

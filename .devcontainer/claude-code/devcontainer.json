@@ -1,8 +1,10 @@
 {
-  // plasmid-clone-validation — Claude Code SANDBOX (offline yolo-Claude).
-  // Builds the thin claude-code layer ON TOP of the published runtime image.
-  // Pick this config in "Dev Containers: Reopen in Container" for agent work.
-  "name": "plasmid-clone-validation (Claude Code Sandbox)",
+  // plasmid-clone-validation — Claude Code SANDBOX, LOCAL BUILD.
+  // Builds the thin claude-code layer ON TOP of the published runtime image, from this repo's
+  // Dockerfile + scripts — so it picks up local firewall/Dockerfile changes WITHOUT republishing.
+  // The DEFAULT config (top-level .devcontainer/devcontainer.json) PULLS the prebuilt :claude-code;
+  // pick THIS one in "Reopen in Container" only when iterating on the sandbox image itself.
+  "name": "plasmid-clone-validation (Claude Code Sandbox — local build)",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "../..",

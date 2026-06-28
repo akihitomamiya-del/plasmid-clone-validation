@@ -1,15 +1,15 @@
 # .devcontainer — runtime image + Claude-Code sandbox
 
-Two-artifact layout (the L3R-seq pattern, **adapted** for this repo's offline-Apptainer design):
+Two images (the L3R-seq pattern, **adapted** for this repo's offline-Apptainer design), driven by **two
+`devcontainer.json` configs** — the **default pulls the prebuilt sandbox**; `claude-code/` **builds it locally**:
 
 | path | what it is | published? |
 |---|---|---|
-| `build/` | the **runtime image** → `ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest` — base + Java + Nextflow + Apptainer + seqkit + the **6 baked SIFs** (5 clone-val + wf-amplicon) + workflow code + our scripts + the amplicon annotation. Lean (~6 GB), fully offline. | **yes** — GHCR `:latest`/`:0.2.0`, via `../.github/workflows/docker-publish.yml` |
-| `claude-code/` | **builds** the **Claude-Code sandbox** — `FROM` the runtime image; adds node + Claude CLI + egress firewall + sudo-lockdown. The agent-containment layer; the only part that changes when Claude updates. | **yes** — GHCR `:claude-code`/`:claude-code-0.2.0` |
-| `claude-code-image/` | **pulls** that prebuilt sandbox (`image: …:claude-code`) — same firewalled yolo sandbox, **no local build**. | — (pulls `:claude-code`) |
-| `devcontainer.json` (here) | **default** config — run the pipeline straight from the published runtime image (no Claude, no firewall). | — |
+| `build/Dockerfile` | SOURCE of the **runtime image** → `ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest` — base + Java + Nextflow + Apptainer + seqkit + the **6 baked SIFs** (5 clone-val + wf-amplicon) + workflow code + our scripts + the amplicon annotation + the **Arabidopsis DB**. Lean (~6 GB), fully offline. Built by CI (`../.github/workflows/docker-publish.yml`) or `docker build`; **not** opened as a devcontainer. | **yes** — GHCR `:latest` |
+| `devcontainer.json` (here) | **DEFAULT** config — **pulls** the prebuilt Claude-Code sandbox (`image: …:claude-code`): the firewalled yolo agent (node + Claude CLI + egress firewall + sudo-lockdown, on the runtime base), **no local build**. | — (pulls `:claude-code`) |
+| `claude-code/` | **builds** that same sandbox locally — `FROM` the runtime image; the agent-containment layer (the only part that changes when the firewall/Claude updates). Also the SOURCE published as `:claude-code`. Use it to iterate before republishing. | **yes** — GHCR `:claude-code` |
 
-Pick a config in **"Dev Containers: Reopen in Container"**: default (pipeline), **`claude-code-image`** (yolo sandbox, **pull** — no build), **`claude-code`** (build the sandbox locally), or **`build`** (iterate the runtime image).
+Pick a config in **"Dev Containers: Reopen in Container"**: **default** (prebuilt yolo sandbox, **pull** — no build) or **`claude-code`** (build the sandbox locally). The runtime image isn't a devcontainer — rebuild it with `docker build -f .devcontainer/build/Dockerfile …` (below) or by pushing a `v*` tag (CI). Full republish runbook: `../docs/republish_prebuilt.md`.
 
 ## Why Apptainer in the devcontainer (deliberate — *not* L3R-seq's conda model)
 The workflow runs each step in an ONT container via **rootless Apptainer**, nested inside the devcontainer.
@@ -100,9 +100,9 @@ ls /opt/sif-cache                                            # 6 ontresearch-*.i
 ./clone_validate.sh examples/plasmid/raw runs/cv auto            # Completed successfully / 5652
 ```
 
-## Pulling the Claude-Code sandbox (no local build)
-The sandbox image is published too, so you can skip the local build: pick the **`claude-code-image`** config,
-or `docker pull ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code`. Same firewalled yolo sandbox,
+## Pulling the Claude-Code sandbox (the default — no local build)
+The default config **is** the pull path: "Reopen in Container" pulls
+`ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code` (or `docker pull …:claude-code`). Same firewalled yolo sandbox,
 with node + Claude CLI + the amplicon/clone-val pipelines baked in. Set `CLAUDE_CODE_OAUTH_TOKEN` (or
 `ANTHROPIC_API_KEY`) in your **host** env first — `claude /login` can't reach claude.ai through the firewall.
 The live CLI self-refreshes at create (`install-claude.sh`, no rebuild). Rebuild + republish the thin layer

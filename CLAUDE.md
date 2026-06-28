@@ -65,13 +65,15 @@ don't make them recall a flag:
   NOT a fork; the `--linear` patch to `run_plannotate.py` is vendored.
 - Runtime = **Apptainer/Singularity**, NOT Docker-in-Docker (Apptainer shares the host netns, so the
   egress firewall governs the workflow for free).
-- The devcontainer is a **multi-artifact split** under `.devcontainer/` (built + validated):
-  `build/` = the publishable lean runtime image (→ `ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest`;
+- The devcontainer is **two images, two configs** under `.devcontainer/` (built + validated):
+  `build/Dockerfile` = the publishable lean runtime image SOURCE (→ `ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest`;
   base + Java + Nextflow + Apptainer + seqkit + **6 baked SIFs** (5 clone-val + wf-amplicon) + workflows + scripts
-  + amplicon annotation; ~6 GB, no Claude/firewall), and `claude-code/` = the yolo sandbox built `FROM` it
-  (+ node + Claude + egress firewall + sudo-lockdown), **also published** as `:claude-code`. `claude-code-image/`
-  is a **pull** config for that prebuilt sandbox (no local build). Top-level `.devcontainer/devcontainer.json` is
-  the default (pipeline from the published image). Authoritative detail: `.devcontainer/README.md`.
+  + amplicon annotation + the **Arabidopsis DB**; ~6 GB, no Claude/firewall; built by CI / `docker build`, **not**
+  opened as a devcontainer), and `claude-code/` = the yolo sandbox built `FROM` it (+ node + Claude + egress
+  firewall + sudo-lockdown), **also published** as `:claude-code`. **Top-level `.devcontainer/devcontainer.json`
+  is the default and PULLS `:claude-code`** (the prebuilt sandbox, no local build); `claude-code/` is the
+  local-build alternative (and the `:claude-code` source). Authoritative detail: `.devcontainer/README.md`;
+  republish runbook: `docs/republish_prebuilt.md`.
 - Rootless Apptainer on a userns-hardened host (`apparmor_restrict_unprivileged_userns=1`) is enabled
   by a **scoped AppArmor profile** (`pcv-apptainer`), NOT the global `sysctl=0`. Why + options
   rejected: `docs/decision_log.md`; how-to: `docs/host_userns_prereq.md`.

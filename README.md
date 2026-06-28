@@ -91,7 +91,7 @@ products share a long identical stretch, give a reference instead (`REF=amplicon
 | `docs/sif_cache.md` | **How to pre-stage the 5 workflow images as SIF** (exact SHAs + the Nextflow cache-filename convention) so it runs offline. |
 | `docs/assembly_testing.md` | **canu vs flye**: how to select the assembler, params to sweep, why flye fails here, and a ready test matrix. |
 | `docs/assembly_findings_2026-06-21.md` | **Which lever decides the assembly** (length-selection vs quality vs assembler) — the controlled factorial, the validated canu-vs-flye mechanism (flye's SIGFPE), the data-driven peak finder, and an inside-vs-outside check. |
-| `.devcontainer/` | **Two-artifact container layout** (see `.devcontainer/README.md`): `build/` = publishable lean runtime image → GHCR; `claude-code/` = the firewalled Claude yolo-mode sandbox `FROM` it; top-level `devcontainer.json` = default pipeline use. |
+| `.devcontainer/` | **Two images, two configs** (see `.devcontainer/README.md`): `build/Dockerfile` = publishable lean runtime image → GHCR; `claude-code/` = the firewalled Claude yolo-mode sandbox `FROM` it; top-level `devcontainer.json` = the **default**, which pulls the prebuilt `:claude-code` sandbox. |
 | `examples/` | Shipped fixtures, one layout per pipeline (`<pipeline>/{raw/, reference_run_*/}`): `plasmid/` (barcode69; 5,652 bp target) and `amplicon/` (barcode18+barcode21; ~2,156 + ~3,283 bp targets), each with its EPI2ME reference run as the correctness target. |
 
 ## Getting started
@@ -118,11 +118,10 @@ cat runs/cv/cloneval/sample_status.txt        # -> Completed successfully / 1 co
 
 | config | what it gives you | image |
 |---|---|---|
-| **default** (`.devcontainer/devcontainer.json`) | run the pipeline from the published runtime — no Claude, no firewall | pulls `ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest` |
-| **`claude-code`** | the offline **yolo-Claude sandbox** — node + Claude CLI + egress firewall + sudo-lockdown atop the runtime (egress-contained for `--dangerously-skip-permissions`) | builds the thin `claude-code` layer `FROM` the runtime |
-| **`build`** | build / iterate the **runtime image** itself | builds `.devcontainer/build/Dockerfile` locally |
+| **default** (`.devcontainer/devcontainer.json`) | the offline **yolo-Claude sandbox** — node + Claude CLI + egress firewall + sudo-lockdown atop the runtime (egress-contained for `--dangerously-skip-permissions`) | **pulls** the prebuilt `ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code` |
+| **`claude-code`** | the same sandbox, **built locally** — for iterating on the firewall/Dockerfile before republishing | builds the thin `claude-code` layer `FROM` the runtime |
 
-Full structure + the containment model: **`.devcontainer/README.md`**.
+The runtime image (`.devcontainer/build/Dockerfile`) is built by CI (`git tag v*`) or `docker build`, not opened as a devcontainer. Full structure + the containment model: **`.devcontainer/README.md`**; republish runbook: **`docs/republish_prebuilt.md`**.
 
 ## Before you build (host prerequisites & secrets)
 
@@ -270,9 +269,9 @@ clone_validate.sh          # wrapper: pre-filter → reshape → run wf-clone-va
 filter_nanopore_reads.sh   # length-window + mean-Q read selection (seqkit), one window for all
 estimate_length_peak.sh    # AUTO engine: yield-weighted histogram → full-length peak + window
 .devcontainer/
-  build/                   # RUNTIME image → GHCR (Java+Nextflow+Apptainer+seqkit+5 baked SIFs+workflow+scripts)
-  claude-code/             # yolo SANDBOX FROM the runtime (node+Claude+egress firewall+sudo-lockdown+uid helper)
-  devcontainer.json        # default config (pull + run the published runtime)
+  build/Dockerfile         # RUNTIME image SOURCE → GHCR (Java+Nextflow+Apptainer+seqkit+6 baked SIFs+workflow+scripts+Arabidopsis DB)
+  claude-code/             # yolo SANDBOX FROM the runtime (node+Claude+egress firewall+sudo-lockdown+uid helper); also the :claude-code source
+  devcontainer.json        # DEFAULT config — pulls the prebuilt :claude-code sandbox
   pcv-apptainer.aaprofile  # scoped AppArmor profile for rootless Apptainer on userns-hardened hosts
   setup-host-apparmor.sh   # one-time host admin: load that profile
   README.md                # authoritative devcontainer guide

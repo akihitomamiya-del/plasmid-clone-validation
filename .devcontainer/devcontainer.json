@@ -1,16 +1,27 @@
 {
-  // plasmid-clone-validation — DEFAULT config: run the pipeline from the published
-  // runtime image (no Claude, no firewall). Two alternatives in the "Reopen in Container" picker:
-  //   • .devcontainer/claude-code — the offline yolo-Claude SANDBOX (Claude CLI + egress firewall)
-  //   • .devcontainer/build       — build/iterate the runtime image itself
-  "name": "plasmid-clone-validation",
-  "image": "ghcr.io/akihitomamiya-del/plasmid-clone-validation:latest",
+  // plasmid-clone-validation — DEFAULT config: the offline yolo-Claude SANDBOX, PREBUILT.
+  // PULLS the published :claude-code image from GHCR (node + Claude CLI + egress firewall +
+  // sudo-lockdown + Live Preview, on top of the runtime base — the amplicon + clone-validation
+  // pipelines + the Arabidopsis DB are baked in). "Reopen in Container" uses this by default,
+  // with no local build.
+  //
+  // The one alternative in the picker is ".devcontainer/claude-code", which BUILDS the same
+  // sandbox locally — use it to test a firewall/Dockerfile change before republishing.
+  // The lean runtime image SOURCE is .devcontainer/build/Dockerfile (built by CI / `docker build`;
+  // it is not opened as a devcontainer). See .devcontainer/README.md.
+  "name": "plasmid-clone-validation (Claude Code Sandbox)",
+  "image": "ghcr.io/akihitomamiya-del/plasmid-clone-validation:claude-code",
 
-  // Rootless Apptainer runArgs so the workflow's nested containers run offline.
+  // Egress firewall (NET_ADMIN/NET_RAW) + rootless Apptainer on a userns-hardened host
+  // (seccomp=unconfined + systempaths=unconfined + /dev/fuse + the custom pcv-apptainer
+  // AppArmor profile, NOT apparmor=unconfined). systempaths=unconfined unmasks /proc so the
+  // workflow's nested Apptainer can mount a fresh /proc. Container-scoped; far short of --privileged.
   // HOST PREREQUISITE (one-time, admin): sudo bash .devcontainer/setup-host-apparmor.sh
-  //   (loads the pcv-apptainer AppArmor profile; see docs/host_userns_prereq.md). Without it
-  //   Docker errors "apparmor profile pcv-apptainer not found". runArgs are IGNORED on Codespaces.
+  //   — else Docker errors "apparmor profile pcv-apptainer not found" and the container won't start.
+  // CAVEAT: runArgs are IGNORED by GitHub Codespaces — use VS Code / devcontainer-CLI locally.
   "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW",
     "--security-opt", "seccomp=unconfined",
     "--security-opt", "apparmor=pcv-apptainer",
     "--security-opt", "systempaths=unconfined",
@@ -19,25 +30,53 @@
 
   "features": { "ghcr.io/devcontainers/features/github-cli:1": {} },
 
-  // Auto-install VS Code extensions into the container's own server on create.
-  // Live Preview (ms-vscode.live-server) renders the workflow HTML report
-  // (runs/<out>/cloneval/wf-clone-validation-report.html) in an embedded tab,
-  // with its port auto-forwarded to your client. This default config has no
-  // egress firewall, so the one-time marketplace install just works on a
-  // networked host; afterward the extension serves the report fully offline.
-  "customizations": {
-    "vscode": { "extensions": ["ms-vscode.live-server"] }
-  },
-
   "containerEnv": {
     "NXF_SINGULARITY_CACHEDIR": "/opt/sif-cache",
     "NXF_HOME": "/opt/nextflow",
-    "NXF_OFFLINE": "true"
+    "NXF_OFFLINE": "true",
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  // Claude needs a token in your HOST env (claude /login can't reach claude.ai through the firewall):
+  //   export CLAUDE_CODE_OAUTH_TOKEN=...   (preferred; long-lived `claude setup-token`)
+  //   or  export ANTHROPIC_API_KEY=...
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
   },
 
+  // Per-${devcontainerId} volumes → each user/devcontainer gets ISOLATED Claude creds + history.
+  // Do NOT mount a volume over /opt — the baked SIF cache + pulled workflow live there.
+  "mounts": [
+    "source=pcv-claude-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
+    "source=pcv-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
+  ],
+
   "remoteUser": "vscode",
+  // KEEP true: the workspace is bind-mounted from the host, so vscode must match the host uid to
+  // write it. Side effect: /opt (baked at build uid 1000) is orphaned when host dev-uid != 1000 —
+  // fix-opt-ownership.sh (postStartCommand) re-chowns it to the runtime uid at start.
   "updateRemoteUserUID": true,
-  // The runtime image keeps the devcontainers-base blanket sudo (no agent to contain here), so a
-  // plain chown re-aligns /opt to the runtime uid when the host dev-uid != 1000.
-  "postStartCommand": "sudo chown -R vscode:vscode /opt/nextflow"
+
+  // Live Preview installs from the baked .vsix in the PRE-firewall window (postCreate precedes
+  // postStart). Non-fatal; logs to /tmp/live-preview-install.log.
+  // claudeRefresh: refresh the (baked, possibly older) Claude CLI to @latest as root via the scoped
+  // sudo grant — so even this PREBUILT pull image tracks latest at create (no local rebuild). The
+  // [ -x ] guard skips cleanly on an older pull predating this script: the published :claude-code image
+  // must be rebuilt+pushed ONCE to carry install-claude.sh + its sudoers grant, after which every create
+  // self-refreshes. Best-effort; keeps the baked fallback on failure. See docs/claude_cli_version_handoff.md.
+  "postCreateCommand": {
+    "livePreview": "bash /usr/local/bin/install-live-preview.sh",
+    "claudeRefresh": "if [ -x /usr/local/bin/install-claude.sh ]; then sudo /usr/local/bin/install-claude.sh; fi"
+  },
+
+  // postStartCommand entries run in PARALLEL via scoped-NOPASSWD sudo (blanket sudo is removed in
+  // the image so a yolo agent can't flush the firewall).
+  //  - fixOwnership: re-align /opt to the runtime vscode uid (updateRemoteUserUID side effect).
+  //  - firewall: Apptainer shares the container netns, so this OUTPUT allowlist governs the workflow too.
+  "postStartCommand": {
+    "fixOwnership": "sudo /usr/local/bin/fix-opt-ownership.sh",
+    "firewall": "sudo /usr/local/bin/start-firewall.sh"
+  },
+  "waitFor": "postStartCommand"
 }
